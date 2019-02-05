@@ -55,10 +55,10 @@ class Card:
 
     def __init__(self, playerOwner, rotationCode=1):
         self.playerOwner = playerOwner
-        self.side1 = Side(Tile(Tile.Color.red, Tile.DotState.filled, self.playerOwner, self),
-                          Tile(Tile.Color.white, Tile.DotState.empty, self.playerOwner, self))
-        self.side2 = Side(Tile(Tile.Color.red, Tile.DotState.empty, self.playerOwner, self),
-                          Tile(Tile.Color.white, Tile.DotState.filled, self.playerOwner, self))
+        self.side1 = Side(Tile(Tile.Color.red, Tile.DotState.filled, self),
+                          Tile(Tile.Color.white, Tile.DotState.empty, self))
+        self.side2 = Side(Tile(Tile.Color.red, Tile.DotState.empty, self),
+                          Tile(Tile.Color.white, Tile.DotState.filled, self))
         self.rotationCode = rotationCode
         if self.rotationCode <= self.NBR_ROTATION_CODES / 2:
             self.activeSide = self.side1
@@ -94,3 +94,5 @@ c = Card(1)
 print(c, "\n")
 c2 = Card(2, 7)
 print(c2)
+
+print("allo")
