@@ -27,7 +27,8 @@ class Tile:
         return self.cardOwner.owner
 
     def __str__(self):
-        return self.color.value + self.dotState.value
+        return self.color.value + self.dotState.value + \
+               (self.cardOwner.playerOwner[0] if len(self.cardOwner.playerOwner) > 0 else " ")
 
     def __repr__(self):
         return self.__str__()
@@ -54,6 +55,8 @@ class Card:
     NBR_ROTATION_CODES = 8
 
     def __init__(self, playerOwner, rotationCode=1):
+        if len(playerOwner) > 1:
+            print("Note: only the first letter of the player's name will be shown in output.")
         self.playerOwner = playerOwner
         self.side1 = Side(Tile(Tile.Color.red, Tile.DotState.filled, self),
                           Tile(Tile.Color.white, Tile.DotState.empty, self))
@@ -90,9 +93,8 @@ class Board:
             print()
 
 
-c = Card(1)
+c = Card("1")
 print(c, "\n")
-c2 = Card(2, 7)
+c2 = Card("2", 7)
 print(c2)
 
-print("allo")
