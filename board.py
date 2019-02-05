@@ -84,7 +84,22 @@ class Board:
     DIMENSIONS_X_Y = (8, 12)
 
     def __init__(self):
-        self.board = [[Tile() for x in range(self.DIMENSIONS_X_Y[0])] for y in range (self.DIMENSIONS_X_Y[1])]
+        self.board = [[Tile(Tile.Color.red, Tile.DotState.filled, self) for x in range(self.DIMENSIONS_X_Y[0])] for y in range (self.DIMENSIONS_X_Y[1])]
+
+    def convertCoordinate(self, letterNumberCoord):
+        """ Convert a coordinate in the form [A-Z] [0-9] (eg. A 2) (given as a tuple)
+            to a coordinate in the current 2-dimensional array
+        """
+        cases = {'A' : 0, 'B' : 1, 'C' : 2, 'D' : 3, 'E' : 4, 'F' : 5, 'G' : 6, 'H' : 7, 'I' : 8,
+                 'J' : 9, 'K' : 10, 'L' : 11, 'M' : 12, 'N' : 13, 'O' : 14, 'P' : 15, 'R' : 16, 'S' : 17,
+                 'T' : 18, 'U' : 19, 'V' : 20, 'W' : 21, 'X' : 22, 'Y' : 23, 'Z' : 24}
+        xCoord = cases[letterNumberCoord[0].upper()]
+        if xCoord > self.DIMENSIONS_X_Y[0] or xCoord < 0:
+            raise Exception("ERROR: X coordinate " + str(letterNumberCoord[0]) + " is out of bounds")
+        yCoord = letterNumberCoord[1] - 1
+        if yCoord > self.DIMENSIONS_X_Y[1] or yCoord < 0:
+            raise Exception("ERROR: Y coordinate " + str(letterNumberCoord[1]) + " is out of bounds")
+        return (xCoord, yCoord)
 
     def __str__(self):
         for row in self.board:
@@ -98,3 +113,5 @@ print(c, "\n")
 c2 = Card("2", 7)
 print(c2)
 
+b = Board()
+b.convertCoordinate(('c', 5))
