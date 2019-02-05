@@ -87,7 +87,7 @@ class Board:
                                 'T': 18, 'U': 19, 'V': 20, 'W': 21, 'X': 22, 'Y': 23, 'Z': 24}
 
     def __init__(self):
-        self.board = [[Tile(Tile.Color.red, Tile.DotState.filled, Card('1')) for x in range(self.DIMENSIONS_X_Y[0])] for y in range (self.DIMENSIONS_X_Y[1])]
+        self.board = [[' ' * 3 for x in range(self.DIMENSIONS_X_Y[0])] for y in range (self.DIMENSIONS_X_Y[1])]
 
     def convertCoordinate(self, letterNumberCoord):
         """ Convert a coordinate in the form [A-Z] [0-9] (eg. A 2) (given as a tuple)
@@ -121,14 +121,14 @@ class Board:
         for row in self.board:
             currentRowStr = '||' + "%2d" % (rowIndex+1) + '|| '
             for colVal in row:
-                currentRowStr += '|' + str(colVal) + '|'
-            currentRowStr += '\n'
+                currentRowStr += '|' + str(colVal)
+            currentRowStr += '|\n'
             outputStr = currentRowStr + outputStr
             rowIndex += 1
 
-        outputStr += ' ' * 7
+        outputStr += ' ' * 6
         for row in range(self.DIMENSIONS_X_Y[0]):
-            outputStr += ' ' * 2 + self.convertNumberToLetter(row) + ' ' * 2
+            outputStr += ' ' * 3 + self.convertNumberToLetter(row)
         outputStr += '\n'
         return outputStr
 
