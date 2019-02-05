@@ -115,6 +115,23 @@ class Board:
                 return letter
         raise Exception("No valid conversion from number " + str(searchedNumber) + " to a letter")
 
+    def readInput(self, inputStd):
+        args = inputStd.split()
+        if args[0] == 0:
+            self.insertCard(args)
+        else:
+            self.swapCard(args)
+
+    def swapCard(self):
+        #TODO: implement this method
+        raise Exception("Method not implemented yet (lol)")
+
+    def insertCard(self, inputArgs):
+        newCard = Card(inputArgs[1])
+        positionNewCard = self.convertCoordinate((inputArgs[2], inputArgs[3]))
+        #TODO: finish implementing this method
+        raise Exception("Method not fully implemented yet (lol)")
+
     def __str__(self):
         outputStr = ''
         rowIndex = 0
