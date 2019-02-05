@@ -41,7 +41,7 @@ class Side:
         self.tile2 = tile2
 
     def __str__(self):
-        return '||' + self.tile1.__str__() + ' | ' + self.tile2.__str__() + '||'
+        return '||' + str(self.tile1) + ' | ' + str(self.tile2) + '||'
 
 
 class Card:
@@ -72,46 +72,72 @@ class Card:
 
     def __str__(self):
         # NOTE: This specific "toString" method should only be used for debug purposes
-        return  "Info on player " + self.playerOwner.__str__() + "'s card:\n" + \
-                "Side 1: " + self.side1.__str__() + "\n" + \
-                "Side 2: " + self.side2.__str__() + "\n" + \
-                "Rotation Code: " + self.rotationCode.__str__() + "\n" + \
+        return  "Info on player " + str(self.playerOwner) + "'s card:\n" + \
+                "Side 1: " + str(self.side1) + "\n" + \
+                "Side 2: " + str(self.side2) + "\n" + \
+                "Rotation Code: " + str(self.rotationCode) + "\n" + \
                 "Active Side: " + ("Side 1" if self.activeSide == self.side1 else "Side 2") + "\n" + \
-                "Orientation: " + self.orientation.__str__()
+                "Orientation: " + str(self.orientation)
 
 
 class Board:
     DIMENSIONS_X_Y = (8, 12)
+    CONVERSION_LETTER_TO_NUMBER = {'A': 0, 'B': 1, 'C': 2, 'D': 3, 'E': 4, 'F': 5, 'G': 6, 'H': 7, 'I': 8,
+                                'J': 9, 'K': 10, 'L': 11, 'M': 12, 'N': 13, 'O': 14, 'P': 15, 'R': 16, 'S': 17,
+                                'T': 18, 'U': 19, 'V': 20, 'W': 21, 'X': 22, 'Y': 23, 'Z': 24}
 
     def __init__(self):
-        self.board = [[Tile(Tile.Color.red, Tile.DotState.filled, self) for x in range(self.DIMENSIONS_X_Y[0])] for y in range (self.DIMENSIONS_X_Y[1])]
+        self.board = [[Tile(Tile.Color.red, Tile.DotState.filled, Card('1')) for x in range(self.DIMENSIONS_X_Y[0])] for y in range (self.DIMENSIONS_X_Y[1])]
 
     def convertCoordinate(self, letterNumberCoord):
         """ Convert a coordinate in the form [A-Z] [0-9] (eg. A 2) (given as a tuple)
             to a coordinate in the current 2-dimensional array
+            Note the letter is the column and the number is the row (so coordinate given as (column, row))
         """
-        cases = {'A' : 0, 'B' : 1, 'C' : 2, 'D' : 3, 'E' : 4, 'F' : 5, 'G' : 6, 'H' : 7, 'I' : 8,
-                 'J' : 9, 'K' : 10, 'L' : 11, 'M' : 12, 'N' : 13, 'O' : 14, 'P' : 15, 'R' : 16, 'S' : 17,
-                 'T' : 18, 'U' : 19, 'V' : 20, 'W' : 21, 'X' : 22, 'Y' : 23, 'Z' : 24}
-        xCoord = cases[letterNumberCoord[0].upper()]
-        if xCoord > self.DIMENSIONS_X_Y[0] or xCoord < 0:
-            raise Exception("ERROR: X coordinate " + str(letterNumberCoord[0]) + " is out of bounds")
-        yCoord = letterNumberCoord[1] - 1
-        if yCoord > self.DIMENSIONS_X_Y[1] or yCoord < 0:
+        xCoord = letterNumberCoord[1] - 1
+        if xCoord > self.DIMENSIONS_X_Y[1] or xCoord < 0:
             raise Exception("ERROR: Y coordinate " + str(letterNumberCoord[1]) + " is out of bounds")
+        yCoord = self.convertLetterToNumber(letterNumberCoord[0])
+        if yCoord > self.DIMENSIONS_X_Y[0] or yCoord < 0:
+            raise Exception("ERROR: X coordinate " + str(letterNumberCoord[0]) + " is out of bounds")
         return (xCoord, yCoord)
 
+    def convertLetterToNumber(self, letter):
+        return self.CONVERSION_LETTER_TO_NUMBER[letter.upper()]
+
+    def convertNumberToLetter(self, searchedNumber):
+        """ NOTE: This is highly inefficient as we have to loop through 24 letters in the worst case.
+            However, this is supposed to only be used for the output that is not required during the tournament
+            (it's for debugging purposes)
+        """
+        for letter, number in self.CONVERSION_LETTER_TO_NUMBER.items():
+            if number == searchedNumber:
+                return letter
+        raise Exception("No valid conversion from number " + str(searchedNumber) + " to a letter")
+
     def __str__(self):
+        outputStr = ''
+        rowIndex = 0
         for row in self.board:
+            currentRowStr = '||' + "%2d" % (rowIndex+1) + '|| '
             for colVal in row:
-                colVal
-            print()
+                currentRowStr += '|' + str(colVal) + '|'
+            currentRowStr += '\n'
+            outputStr = currentRowStr + outputStr
+            rowIndex += 1
+
+        outputStr += ' ' * 7
+        for row in range(self.DIMENSIONS_X_Y[0]):
+            outputStr += ' ' * 2 + self.convertNumberToLetter(row) + ' ' * 2
+        outputStr += '\n'
+        return outputStr
 
 
 c = Card("1")
-print(c, "\n")
+#print(c, "\n")
 c2 = Card("2", 7)
-print(c2)
+#print(c2)
 
 b = Board()
+print(b)
 b.convertCoordinate(('c', 5))
