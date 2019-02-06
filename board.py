@@ -22,13 +22,15 @@ class Tile:
         self.dotState = dotState
         self.cardOwner = cardOwner
 
+    """ # To remove if we find out we do not need a reference to the player owner
     def getPlayerOwner(self):
-        """ Return the player that owns this tile"""
+        # Return the player that owns this tile
         return self.cardOwner.owner
+    """
 
     def __str__(self):
-        return self.color.value + self.dotState.value + \
-               (self.cardOwner.playerOwner[0] if len(self.cardOwner.playerOwner) > 0 else " ")
+        # Note: We assume there is no more than 99 different ids
+        return self.color.value + self.dotState.value + "%-2d" % self.cardOwner.id
 
     def __repr__(self):
         return self.__str__()
@@ -41,7 +43,7 @@ class Side:
         self.tile2 = tile2
 
     def __str__(self):
-        return '||' + str(self.tile1) + ' | ' + str(self.tile2) + '||'
+        return '||' + str(self.tile1) + '|' + str(self.tile2) + '||'
 
 
 class Card:
@@ -51,13 +53,20 @@ class Card:
         left = 3
         up = 4
 
-    NBR_CARDS = 24
+    MAX_NBR_CARDS = 24
     NBR_ROTATION_CODES = 8
+    # NOTE: The id system is probably not necessary, but it allows us
+    # to identify the different cards placed on the board. For debugging purposes it will be quite useful. Also,
+    # please do not call self.id_count but Card.id_count instead whenever you want to modify the value of the variable.
+    id_count = 0
 
-    def __init__(self, playerOwner, rotationCode=1):
+    def __init__(self, rotationCode=1):
+        """ #Will probably remove, unless we find out for whatever reason that
+            #the card needs to know who is the player that placed it
         if len(playerOwner) > 1:
             print("Note: only the first letter of the player's name will be shown in output.")
         self.playerOwner = playerOwner
+        """
         self.side1 = Side(Tile(Tile.Color.red, Tile.DotState.filled, self),
                           Tile(Tile.Color.white, Tile.DotState.empty, self))
         self.side2 = Side(Tile(Tile.Color.red, Tile.DotState.empty, self),
@@ -69,15 +78,19 @@ class Card:
         else:
             self.activeSide = self.side2
             self.orientation = self.Orientation(self.rotationCode - self.NBR_ROTATION_CODES / 2)
+        self.id = Card.id_count
+        Card.id_count += 1
+        if Card.id_count > Card.MAX_NBR_CARDS:
+            raise Exception("Error: exceeded the maximum number of cards allowed.\nThere can only be at most " + str(Card.MAX_NBR_CARDS) + " created.")
 
     def __str__(self):
         # NOTE: This specific "toString" method should only be used for debug purposes
-        return  "Info on player " + str(self.playerOwner) + "'s card:\n" + \
-                "Side 1: " + str(self.side1) + "\n" + \
+        #return #"Info on player " + str(self.playerOwner) + "'s card:\n" + \
+        return  "Side 1: " + str(self.side1) + "\n" + \
                 "Side 2: " + str(self.side2) + "\n" + \
                 "Rotation Code: " + str(self.rotationCode) + "\n" + \
                 "Active Side: " + ("Side 1" if self.activeSide == self.side1 else "Side 2") + "\n" + \
-                "Orientation: " + str(self.orientation)
+                "Orientation: " + str(self.orientation) + "\n"
 
 
 class Board:
@@ -87,7 +100,15 @@ class Board:
                                 'T': 18, 'U': 19, 'V': 20, 'W': 21, 'X': 22, 'Y': 23, 'Z': 24}
 
     def __init__(self):
-        self.board = [[' ' * 3 for x in range(self.DIMENSIONS_X_Y[0])] for y in range (self.DIMENSIONS_X_Y[1])]
+        # NOTE: Initially, the board is empty (no cards on it), so no tiles are on it either.
+        # We illustrate a location in the board that has no card on it as blank spaces.
+        self.board = [[' ' * 4 for x in range(self.DIMENSIONS_X_Y[0])] for y in range (self.DIMENSIONS_X_Y[1])]
+
+        # DEBUGGING TO BE REMOVED
+        c = Card()
+        self.board[1][2] = Tile(Tile.Color.red, Tile.DotState.empty, c)
+        self.board[1][3] = Tile(Tile.Color.white, Tile.DotState.filled, c)
+        # END OF REMOVAL
 
     def convertCoordinate(self, letterNumberCoord):
         """ Convert a coordinate in the form [A-Z] [0-9] (eg. A 2) (given as a tuple)
@@ -122,7 +143,7 @@ class Board:
         else:
             self.swapCard(args)
 
-    def swapCard(self):
+    def swapCard(self, args):
         #TODO: implement this method
         raise Exception("Method not implemented yet (lol)")
 
@@ -136,24 +157,24 @@ class Board:
         outputStr = ''
         rowIndex = 0
         for row in self.board:
-            currentRowStr = '||' + "%2d" % (rowIndex+1) + '|| '
+            currentRowStr = "%2d" % (rowIndex + 1) + ' '
             for colVal in row:
                 currentRowStr += '|' + str(colVal)
             currentRowStr += '|\n'
             outputStr = currentRowStr + outputStr
             rowIndex += 1
 
-        outputStr += ' ' * 6
+        outputStr += ' ' * 5
         for row in range(self.DIMENSIONS_X_Y[0]):
-            outputStr += ' ' * 3 + self.convertNumberToLetter(row)
-        outputStr += '\n'
+            #outputStr += ' ' * 4 + self.convertNumberToLetter(row)
+            outputStr += self.convertNumberToLetter(row) + ' ' * 4
+        outputStr += '\n\n'
         return outputStr
 
-
-c = Card("1")
-#print(c, "\n")
-c2 = Card("2", 7)
-#print(c2)
+c = Card()
+print(c, "\n")
+c2 = Card(7)
+print(c2)
 
 b = Board()
 print(b)
