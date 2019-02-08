@@ -1,5 +1,14 @@
 from enum import Enum
 
+# The specifications tell us that there are 24 cards available to be placed on the board (shared between both players).
+NBR_CARDS = 24
+
+addTuples = lambda tuple1, tuple2: tuple(x + y for x, y in zip(tuple1, tuple2))
+def allValuesPositive(arrayValues):
+    for x in arrayValues:
+        if x < 0:
+            return False
+    return True
 
 class Tile:
     """ A tile is identified by whether it is red or white and by whether the dot on it is filled or empty.
@@ -45,7 +54,6 @@ class Side:
     def __str__(self):
         return '||' + str(self.tile1) + '|' + str(self.tile2) + '||'
 
-
 class Card:
     class Orientation(Enum):
         right = 1
@@ -53,7 +61,6 @@ class Card:
         left = 3
         up = 4
 
-    MAX_NBR_CARDS = 24
     NBR_ROTATION_CODES = 8
     # NOTE: The id system is probably not necessary, but it allows us
     # to identify the different cards placed on the board. For debugging purposes it will be quite useful. Also,
@@ -80,8 +87,16 @@ class Card:
             self.orientation = self.Orientation(self.rotationCode - self.NBR_ROTATION_CODES / 2)
         self.id = Card.id_count
         Card.id_count += 1
-        if Card.id_count > Card.MAX_NBR_CARDS:
-            raise Exception("Error: exceeded the maximum number of cards allowed.\nThere can only be at most " + str(Card.MAX_NBR_CARDS) + " created.")
+
+    def getOffsetSecondTileBasedOnOrientation(self):
+        if self.orientation == self.Orientation.right:
+            return (1, 0)
+        elif self.orientation == self.Orientation.left:
+            return (-1, 0)
+        elif self.orientation == self.Orientation.up:
+            return (0, 1)
+        else:
+            return (0, -1)
 
     def __str__(self):
         # NOTE: This specific "toString" method should only be used for debug purposes
@@ -99,28 +114,26 @@ class Board:
                                 'J': 9, 'K': 10, 'L': 11, 'M': 12, 'N': 13, 'O': 14, 'P': 15, 'R': 16, 'S': 17,
                                 'T': 18, 'U': 19, 'V': 20, 'W': 21, 'X': 22, 'Y': 23, 'Z': 24}
 
-    def __init__(self):
+    def __init__(self, maxNbrCards):
         # NOTE: Initially, the board is empty (no cards on it), so no tiles are on it either.
-        # We illustrate a location in the board that has no card on it as blank spaces.
+        # We illustrate a location on the board with no tile/card as a string (blank spaces).
         self.board = [[' ' * 4 for x in range(self.DIMENSIONS_X_Y[0])] for y in range (self.DIMENSIONS_X_Y[1])]
-
-        # DEBUGGING TO BE REMOVED
-        c = Card()
-        self.board[1][2] = Tile(Tile.Color.red, Tile.DotState.empty, c)
-        self.board[1][3] = Tile(Tile.Color.white, Tile.DotState.filled, c)
-        # END OF REMOVAL
+        self.nbrCards = 0
+        # There is at most maxNbrCards cards on the board and we have to ensure no one can insert cards (through the
+        # methods we provide) when we reach that quota.
+        self.maxNbrCards = maxNbrCards
 
     def convertCoordinate(self, letterNumberCoord):
         """ Convert a coordinate in the form [A-Z] [0-9] (eg. A 2) (given as a tuple)
             to a coordinate in the current 2-dimensional array
             Note the letter is the column and the number is the row (so coordinate given as (column, row))
         """
-        xCoord = letterNumberCoord[1] - 1
-        if xCoord > self.DIMENSIONS_X_Y[1] or xCoord < 0:
-            raise Exception("ERROR: Y coordinate " + str(letterNumberCoord[1]) + " is out of bounds")
-        yCoord = self.convertLetterToNumber(letterNumberCoord[0])
-        if yCoord > self.DIMENSIONS_X_Y[0] or yCoord < 0:
+        xCoord = self.convertLetterToNumber(letterNumberCoord[0])
+        if xCoord >= self.DIMENSIONS_X_Y[0]:
             raise Exception("ERROR: X coordinate " + str(letterNumberCoord[0]) + " is out of bounds")
+        yCoord = letterNumberCoord[1] - 1
+        if yCoord >= self.DIMENSIONS_X_Y[1] or yCoord < 0:
+            raise Exception("ERROR: Y coordinate " + str(letterNumberCoord[1]) + " is out of bounds")
         return (xCoord, yCoord)
 
     def convertLetterToNumber(self, letter):
@@ -137,21 +150,76 @@ class Board:
         raise Exception("No valid conversion from number " + str(searchedNumber) + " to a letter")
 
     def readInput(self, inputStd):
+        """ Method used to try the read the input from the user.
+            Return true if we were able to successfully and false otherwise.
+        """
         args = inputStd.split()
-        if args[0] == 0:
-            self.insertCard(args)
+        if int(args[0]) == 0:
+            return self.insertCard(args)
         else:
-            self.swapCard(args)
+            return self.swapCard(args)
 
     def swapCard(self, args):
         #TODO: implement this method
         raise Exception("Method not implemented yet (lol)")
 
     def insertCard(self, inputArgs):
-        newCard = Card(inputArgs[1])
-        positionNewCard = self.convertCoordinate((inputArgs[2], inputArgs[3]))
-        #TODO: finish implementing this method
-        raise Exception("Method not fully implemented yet (lol)")
+        # Ensure that false is returned when we try to exceed the max number of cards to indicate failure
+        if self.nbrCards >= self.maxNbrCards:
+            return False
+        inputRotCode = int(inputArgs[1])
+        if inputRotCode <= 0 or inputRotCode > Card.NBR_ROTATION_CODES:
+            return False
+
+        newCard = Card(inputRotCode)
+        try:
+            positionNewCard = self.convertCoordinate((inputArgs[2], int(inputArgs[3])))
+        except Exception as e:
+            print(e)
+            return False
+        positionSecondTile = addTuples(positionNewCard, newCard.getOffsetSecondTileBasedOnOrientation())
+        if not self.cardLocationIsValidSpot(positionNewCard, positionSecondTile, newCard):
+            return False
+        self.board[positionNewCard[1]][positionNewCard[0]] = newCard.activeSide.tile1
+        self.board[positionSecondTile[1]][positionSecondTile[0]] = newCard.activeSide.tile2
+
+        self.nbrCards += 1
+
+    def cardLocationIsValidSpot(self, tile1Location, tile2Location, newCard):
+        """ Return whether or not the given location in the 2d-dimensional array is valid.
+            To be valid, it has to:
+            - 1- Be empty (no tiles already on it)
+            - 2- Not be out of bounds (x and y not < 0, x < dimensions.x, y < dimensions.y)
+            - 3- a: Be placed on row 1 (tile1location.y = 0) or
+                 b: On top of cards that were already placed
+            Used to check if we can put a new tile on that location or if it is illegal.
+        """
+        # Condition 2: Because of how python works, negative indexes are supported, but we want to avoid them
+        if not allValuesPositive([tile1Location[0], tile1Location[1], tile2Location[0], tile2Location[1]]):
+            return False
+
+        # This variable is used for condition 1:
+        # Check whether both board locations are empty (no tile on neither of them)
+        emptyLocations = False
+        try:
+            emptyLocations = not isinstance(self.board[tile1Location[1]][tile1Location[0]], Tile) and \
+                                not isinstance(self.board[tile2Location[1]][tile2Location[0]], Tile)
+        # Condition 2: Exception raised when at least one of the locations of the card is out of bounds
+        except Exception as e:
+            print (e)
+            return False
+
+        if not emptyLocations:
+            return False
+
+        # Condition 3a: Check whether the card is placed on row 1
+        if tile1Location[0] == 0:
+            # Since we checked conditions 1, 2 and 3a, it is sufficient to say that
+            return True
+        # Condition 3b:
+        if newCard.orientation == Card.Orientation.right or newCard.orientation == Card.Orientation.left:
+            return True
+        return True
 
     def __str__(self):
         outputStr = ''
@@ -166,16 +234,17 @@ class Board:
 
         outputStr += ' ' * 5
         for row in range(self.DIMENSIONS_X_Y[0]):
-            #outputStr += ' ' * 4 + self.convertNumberToLetter(row)
             outputStr += self.convertNumberToLetter(row) + ' ' * 4
         outputStr += '\n\n'
         return outputStr
 
 c = Card()
-print(c, "\n")
+#print(c, "\n")
 c2 = Card(7)
-print(c2)
+#print(c2)
 
-b = Board()
+b = Board(NBR_CARDS)
+#print(b)
+b.readInput("0 4 A 8")
 print(b)
-b.convertCoordinate(('c', 5))
+#print(b)
