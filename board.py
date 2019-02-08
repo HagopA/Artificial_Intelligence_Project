@@ -1,4 +1,5 @@
 from enum import Enum
+from random import randint
 
 # The specifications tell us that there are 24 cards available to be placed on the board (shared between both players).
 NBR_CARDS = 24
@@ -30,6 +31,12 @@ class Tile:
         self.color = color
         self.dotState = dotState
         self.cardOwner = cardOwner
+
+    def getItemKey(self, typeItem):
+        if typeItem == Tile.Color:
+            return self.color
+        else:
+            return self.dotState
 
     """ # To remove if we find out we do not need a reference to the player owner
     def getPlayerOwner(self):
@@ -149,14 +156,30 @@ class Board:
                 return letter
         raise Exception("No valid conversion from number " + str(searchedNumber) + " to a letter")
 
+    def askForInput(self, player):
+        insertedTilesPos = None
+        while insertedTilesPos is None:
+            insertedTilesPos = self.readInput(input(player + ", please enter coordinates: "))
+        return insertedTilesPos
+
     def readInput(self, inputStd):
         """ Method used to try the read the input from the user.
             Return true if we were able to successfully and false otherwise.
         """
         args = inputStd.split()
-        if int(args[0]) == 0:
+        if args[0] == "0":
+            if len(args) != 4:
+                print("Input error: Regular moves should have 4 arguments (not " + str(len(args)) + "):")
+                print("0 orientationCode xCoord yCoord")
+                print("Example: 0 5 A 2")
+                return False
             return self.insertCard(args)
         else:
+            if len(args) != 7:
+                print("Input error: Swap moves should have 7 arguments (not " + str(len(args)) + "):")
+                print("xCoordTile1 yCoordTile1 xCoordTile2 yCoordTile2 newOrientationCode newCoordX newCoordY")
+                print("Example: F 2 F 3 3 A 2")
+                return False
             return self.swapCard(args)
 
     def swapCard(self, args):
@@ -164,26 +187,60 @@ class Board:
         raise Exception("Method not implemented yet (lol)")
 
     def insertCard(self, inputArgs):
-        # Ensure that false is returned when we try to exceed the max number of cards to indicate failure
+        """ Tries to insert card into the board from the inputArgs given by player.
+            If it was successful in inserting it, it increments self.nbrCards by 1 and returns the newCard.
+            Otherwise, it returns None.
+        """
+        # Ensure that an exception is thrown when we try to exceed the max number of cards to indicate failure
         if self.nbrCards >= self.maxNbrCards:
-            return False
-        inputRotCode = int(inputArgs[1])
+            print("Error: Cannot insert more than " + self.maxNbrCards + " cards on the board.\n"\
+                  "Please do a recycling move instead.")
+        try:
+            inputRotCode = int(inputArgs[1])
+        except ValueError:
+            print("The 2nd argument should be an integer and " + inputArgs[1] + " is not.")
+            return None
         if inputRotCode <= 0 or inputRotCode > Card.NBR_ROTATION_CODES:
-            return False
+            print("Valid rotation codes range from 1 to " + str(Card.NBR_ROTATION_CODES) + ", " +\
+                  "thus " + str(inputRotCode) + " is out of range.")
+            return None
 
         newCard = Card(inputRotCode)
         try:
             positionNewCard = self.convertCoordinate((inputArgs[2], int(inputArgs[3])))
-        except Exception as e:
-            print(e)
-            return False
+        except Exception:
+            print(inputArgs[2] + " " + inputArgs[3] + " does not represent a valid position.")
+            return None
         positionSecondTile = addTuples(positionNewCard, newCard.getOffsetSecondTileBasedOnOrientation())
         if not self.cardLocationIsValidSpot(positionNewCard, positionSecondTile, newCard):
-            return False
+            print("The location where you want to place your card is not valid.")
+            return None
         self.board[positionNewCard[1]][positionNewCard[0]] = newCard.activeSide.tile1
         self.board[positionSecondTile[1]][positionSecondTile[0]] = newCard.activeSide.tile2
 
         self.nbrCards += 1
+
+        return (positionNewCard, positionSecondTile)
+
+
+    def checkFourConsecutive(self, tilePos, offset, typeItem):
+        """ Check whether or not there are 4 consecutive tiles with the same state of the type item
+            from tilePos in the direction of the offset (offset can be seen as a normalized direction vector).
+        """
+        nbrConsecutives = 1
+        currentPos = tilePos
+        while nbrConsecutives < 4:
+            nextPos = addTuples(currentPos, offset)
+            if not allValuesPositive([nextPos[0], nextPos[1], currentPos[0], currentPos[1]]):
+                return False
+            if isinstance(self.board[tilePos[1]][tilePos[0]], Tile) \
+                and isinstance(self.board[nextPos[1]][nextPos[0]], Tile) \
+                and self.board[tilePos[1]][tilePos[0]].getItemKey(typeItem) == self.board[nextPos[1]][nextPos[0]].getItemKey(typeItem):
+                    nbrConsecutives += 1
+            else:
+                break
+            currentPos = nextPos
+        return nbrConsecutives >= 4
 
     def cardLocationIsValidSpot(self, tile1Location, tile2Location, newCard):
         """ Return whether or not the given location in the 2d-dimensional array is valid.
@@ -196,6 +253,7 @@ class Board:
         """
         # Condition 2: Because of how python works, negative indexes are supported, but we want to avoid them
         if not allValuesPositive([tile1Location[0], tile1Location[1], tile2Location[0], tile2Location[1]]):
+            print("Error: one of the coordinates is negative.")
             return False
 
         # This variable is used for condition 1:
@@ -205,21 +263,48 @@ class Board:
             emptyLocations = not isinstance(self.board[tile1Location[1]][tile1Location[0]], Tile) and \
                                 not isinstance(self.board[tile2Location[1]][tile2Location[0]], Tile)
         # Condition 2: Exception raised when at least one of the locations of the card is out of bounds
-        except Exception as e:
-            print (e)
+        except Exception:
             return False
 
         if not emptyLocations:
+            print ("Error: The card would be placed on top of another card's segment(s).")
             return False
 
         # Condition 3a: Check whether the card is placed on row 1
-        if tile1Location[0] == 0:
-            # Since we checked conditions 1, 2 and 3a, it is sufficient to say that
+        if tile1Location[1] == 0 or tile2Location[1] == 0:
+            # Since we checked conditions 1, 2 and 3a, the card location is valid.
             return True
-        # Condition 3b:
+        # Condition 3b: Card has to be placed on top of other cards
         if newCard.orientation == Card.Orientation.right or newCard.orientation == Card.Orientation.left:
+            tile1LocationYUnder = tile1Location[1] - 1
+            tile2LocationYUnder = tile2Location[1] - 1
+            if not allValuesPositive([tile1LocationYUnder, tile2LocationYUnder]):
+                print("Error: One of the 2 tiles under the card that you want to place has negative coordinates.")
+                return False
+            occupiedLocations = isinstance(self.board[tile1LocationYUnder][tile1Location[0]], Tile) and \
+                                isinstance(self.board[tile2LocationYUnder][tile2Location[0]], Tile)
+            if not occupiedLocations:
+                print("Error: The card would hang over one or 2 empty cells, which is not allowed.")
+                return False
+            # Since we checked conditions 1, 2 and 3b, the card location is valid.
             return True
-        return True
+        else: # if newCard.orientation == Card.Orientation.up or newCard.orientation == Card.Orientation.down:
+            tile1LocationUnder = (tile1Location[0], tile1Location[1] - 1) \
+                if newCard.orientation == Card.Orientation.up else (tile2Location[0], tile2Location[1] - 1)
+            print (tile1LocationUnder)
+            if not allValuesPositive([tile1LocationUnder[0]]):
+                print("Error: The tile under the card that you want to place has negative coordinates.")
+                return False
+            if not isinstance(self.board[tile1LocationUnder[1]][tile1LocationUnder[0]], Tile):
+                print("Error: The card would hang over an empty cell, which is not allowed.")
+                return False
+
+    def checkWinConditions(self, insertedTilesPos, typeItem):
+        offsets = [(0, 1), (0, -1), (1, 0), (-1, 0), (1, 1), (-1, -1), (1, -1), (-1, 1)]
+        for tilePos in insertedTilesPos:
+            for offset in offsets:
+                if self.checkFourConsecutive(tilePos, offset, typeItem):
+                    return True
 
     def __str__(self):
         outputStr = ''
@@ -238,13 +323,42 @@ class Board:
         outputStr += '\n\n'
         return outputStr
 
-c = Card()
-#print(c, "\n")
-c2 = Card(7)
-#print(c2)
+class DotPlayer:
 
-b = Board(NBR_CARDS)
-#print(b)
-b.readInput("0 4 A 8")
-print(b)
-#print(b)
+    def __init__(self):
+        self.name = "player1 - dots"
+        self.typeItem = Tile.DotState
+
+class ColorPlayer:
+    def __init__(self):
+        self.name = "player2 - color"
+        self.typeItem = Tile.Color
+
+def gameLoop():
+    b = Board(NBR_CARDS)
+    p1 = DotPlayer()
+    p2 = ColorPlayer()
+
+    # We randomly determine who the first player is between the 2 players
+    currentPlayer = p1 if randint(0, 1) == 0 else p2
+    otherPlayer = p1 if currentPlayer == p2 else p2
+    while True:
+        insertedTilesPos = b.askForInput(currentPlayer.name)
+        print(b)
+        if b.nbrCards >= 4:
+            # Even if the other player wins at the same time as the current player, the current player has
+            # the priority.
+            # (i.e. The current players wins even if both players won simultaneously,
+            # because the current player was the one to play the winning move)
+            if b.checkWinConditions(insertedTilesPos, currentPlayer.typeItem):
+                print(currentPlayer.name + " wins the game!!!")
+                return
+            if b.checkWinConditions(insertedTilesPos, otherPlayer.typeItem):
+                print(otherPlayer.name + " wins the game!!!")
+                return
+        # We switch to the other player
+        otherPlayer = currentPlayer
+        currentPlayer = p1 if currentPlayer == p2 else p2
+
+
+gameLoop()
