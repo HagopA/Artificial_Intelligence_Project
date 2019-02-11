@@ -5,6 +5,8 @@ from random import randint
 NBR_CARDS = 24
 
 addTuples = lambda tuple1, tuple2: tuple(x + y for x, y in zip(tuple1, tuple2))
+
+
 def allValuesPositive(arrayValues):
     for x in arrayValues:
         if x < 0:
@@ -61,6 +63,7 @@ class Side:
     def __str__(self):
         return '||' + str(self.tile1) + '|' + str(self.tile2) + '||'
 
+
 class Card:
     class Orientation(Enum):
         right = 1
@@ -107,7 +110,7 @@ class Card:
 
     def __str__(self):
         # NOTE: This specific "toString" method should only be used for debug purposes
-        #return #"Info on player " + str(self.playerOwner) + "'s card:\n" + \
+        # return #"Info on player " + str(self.playerOwner) + "'s card:\n" + \
         return  "Side 1: " + str(self.side1) + "\n" + \
                 "Side 2: " + str(self.side2) + "\n" + \
                 "Rotation Code: " + str(self.rotationCode) + "\n" + \
@@ -183,7 +186,7 @@ class Board:
             return self.swapCard(args)
 
     def swapCard(self, args):
-        #TODO: implement this method
+        # TODO: implement this method
         raise Exception("Method not implemented yet (lol)")
 
     def insertCard(self, inputArgs):
@@ -221,7 +224,6 @@ class Board:
         self.nbrCards += 1
 
         return (positionNewCard, positionSecondTile)
-
 
     def checkFourConsecutive(self, tilePos, offset, typeItem):
         """ Check whether or not there are 4 consecutive tiles with the same state of the type item
@@ -323,16 +325,19 @@ class Board:
         outputStr += '\n\n'
         return outputStr
 
+
 class DotPlayer:
 
     def __init__(self):
         self.name = "player1 - dots"
         self.typeItem = Tile.DotState
 
+
 class ColorPlayer:
     def __init__(self):
         self.name = "player2 - color"
         self.typeItem = Tile.Color
+
 
 def gameLoop():
     b = Board(NBR_CARDS)
