@@ -335,13 +335,27 @@ class ColorPlayer:
         self.typeItem = Tile.Color
 
 def gameLoop():
+def gameLoop():
     b = Board(NBR_CARDS)
     p1 = DotPlayer()
     p2 = ColorPlayer()
 
-    # We randomly determine who the first player is between the 2 players
-    currentPlayer = p1 if randint(0, 1) == 0 else p2
-    otherPlayer = p1 if currentPlayer == p2 else p2
+    # Users decide which player they'd like to be
+    userInput = input("Enter C if you'd like to play color, or D if you'd like to play dots \n")
+    while (userInput != ''):
+        if (userInput == 'C' or userInput == 'c'):
+                currentPlayer = p2
+                otherPlayer = p1
+                break
+        elif (userInput == 'D' or  userInput == 'd'):
+                currentPlayer = p1
+                otherPlayer = p2
+                break
+        else:
+            userInput = input("Invalid entry. Please try again \n")
+
+
+
     while True:
         insertedTilesPos = b.askForInput(currentPlayer.name)
         print(b)
