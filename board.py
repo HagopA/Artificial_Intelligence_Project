@@ -335,7 +335,6 @@ class ColorPlayer:
         self.typeItem = Tile.Color
 
 def gameLoop():
-def gameLoop():
     b = Board(NBR_CARDS)
     p1 = DotPlayer()
     p2 = ColorPlayer()
@@ -353,8 +352,6 @@ def gameLoop():
                 break
         else:
             userInput = input("Invalid entry. Please try again \n")
-
-
 
     while True:
         insertedTilesPos = b.askForInput(currentPlayer.name)
