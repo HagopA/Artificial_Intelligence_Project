@@ -95,15 +95,15 @@ class Card:
         self.id = Card.id_count
         Card.id_count += 1
 
-    def getOffsetSecondTileBasedOnOrientation(self):
+    def getTilePositions(self, position):
         if self.orientation == self.Orientation.right:
-            return (1, 0)
+            return position, addTuples(position, (1, 0))
         elif self.orientation == self.Orientation.left:
-            return (-1, 0)
+            return addTuples(position, (1, 0)), position
         elif self.orientation == self.Orientation.up:
-            return (0, 1)
-        else:
-            return (0, -1)
+            return position, addTuples(position, (0, 1))
+        else: # if self.orientation == self.Orientation.down:
+            return addTuples(position, (0, 1)), position
 
     def __str__(self):
         # NOTE: This specific "toString" method should only be used for debug purposes
@@ -211,11 +211,14 @@ class Board:
         except Exception:
             print(inputArgs[2] + " " + inputArgs[3] + " does not represent a valid position.")
             return None
-        positionSecondTile = addTuples(positionNewCard, newCard.getOffsetSecondTileBasedOnOrientation())
-        if not self.cardLocationIsValidSpot(positionNewCard, positionSecondTile, newCard):
+        positionFirstTile, positionSecondTile = newCard.getTilePositions(positionNewCard)
+        if not self.cardLocationIsValidSpot(positionFirstTile, positionSecondTile, newCard):
             print("The location where you want to place your card is not valid.")
             return None
-        
+
+        self.board[positionFirstTile[1]][positionFirstTile[0]] = newCard.activeSide.tile1
+        self.board[positionSecondTile[1]][positionSecondTile[0]] = newCard.activeSide.tile2
+        """
         if inputRotCode == 2 or inputRotCode == 4 or inputRotCode == 6 or inputRotCode == 8:
             if inputRotCode == 2:
                 self.board[positionNewCard[1] + 1][positionNewCard[0]] = newCard.activeSide.tile1
@@ -232,6 +235,7 @@ class Board:
         else:
             self.board[positionNewCard[1]][positionNewCard[0]] = newCard.activeSide.tile1
             self.board[positionSecondTile[1]][positionSecondTile[0]] = newCard.activeSide.tile2
+        """
 
         self.nbrCards += 1
         
@@ -279,6 +283,7 @@ class Board:
                                 not isinstance(self.board[tile2Location[1]][tile2Location[0]], Tile)
         # Condition 2: Exception raised when at least one of the locations of the card is out of bounds
         except Exception:
+            print("Error: You cannot place a card on top of other cards.")
             return False
 
         if not emptyLocations:
@@ -306,7 +311,6 @@ class Board:
         else: # if newCard.orientation == Card.Orientation.up or newCard.orientation == Card.Orientation.down:
             tile1LocationUnder = (tile1Location[0], tile1Location[1] - 1) \
                 if newCard.orientation == Card.Orientation.up else (tile2Location[0], tile2Location[1] - 1)
-            print (tile1LocationUnder)
             if not allValuesPositive([tile1LocationUnder[0]]):
                 print("Error: The tile under the card that you want to place has negative coordinates.")
                 return False
