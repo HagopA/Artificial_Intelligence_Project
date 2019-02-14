@@ -270,11 +270,6 @@ class Board:
                  b: On top of cards that were already placed
             Used to check if we can put a new tile on that location or if it is illegal.
         """
-        # Condition 2: Because of how python works, negative indexes are supported, but we want to avoid them
-        if not allValuesPositive([tile1Location[0], tile2Location[0]]):
-            print("Error: one of the coordinates is negative.")
-            return False
-
         # This variable is used for condition 1:
         # Check whether both board locations are empty (no tile on neither of them)
         emptyLocations = False
