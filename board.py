@@ -102,7 +102,7 @@ class Card:
             return addTuples(position, (1, 0)), position
         elif self.orientation == self.Orientation.up:
             return position, addTuples(position, (0, 1))
-        else: # if self.orientation == self.Orientation.down:
+        elif self.orientation == self.Orientation.down:
             return addTuples(position, (0, 1)), position
 
     def __str__(self):
@@ -216,6 +216,7 @@ class Board:
             print("The location where you want to place your card is not valid.")
             return None
 
+
         self.board[positionFirstTile[1]][positionFirstTile[0]] = newCard.activeSide.tile1
         self.board[positionSecondTile[1]][positionSecondTile[0]] = newCard.activeSide.tile2
         """
@@ -287,15 +288,13 @@ class Board:
 
         # Condition 3a: Check whether the card is placed on row 1
         if tile1Location[1] == 0 or tile2Location[1] == 0:
-            # Since we checked conditions 1, 2 and 3a, the card location is valid.
+        # Since we checked conditions 1, 2 and 3a, the card location is valid.
             return True
         # Condition 3b: Card has to be placed on top of other cards
         if newCard.orientation == Card.Orientation.right or newCard.orientation == Card.Orientation.left:
             tile1LocationYUnder = tile1Location[1] - 1
             tile2LocationYUnder = tile2Location[1] - 1
-            if not allValuesPositive([tile1LocationYUnder, tile2LocationYUnder]):
-                print("Error: One of the 2 tiles under the card that you want to place has negative coordinates.")
-                return False
+
             occupiedLocations = isinstance(self.board[tile1LocationYUnder][tile1Location[0]], Tile) and \
                                 isinstance(self.board[tile2LocationYUnder][tile2Location[0]], Tile)
             if not occupiedLocations:
@@ -306,12 +305,12 @@ class Board:
         else: # if newCard.orientation == Card.Orientation.up or newCard.orientation == Card.Orientation.down:
             tile1LocationUnder = (tile1Location[0], tile1Location[1] - 1) \
                 if newCard.orientation == Card.Orientation.up else (tile2Location[0], tile2Location[1] - 1)
-            if not allValuesPositive([tile1LocationUnder[0]]):
-                print("Error: The tile under the card that you want to place has negative coordinates.")
-                return False
+
             if not isinstance(self.board[tile1LocationUnder[1]][tile1LocationUnder[0]], Tile):
                 print("Error: The card would hang over an empty cell, which is not allowed.")
                 return False
+            else:
+                return True
 
     def checkWinConditions(self, insertedTilesPos, typeItem):
         offsets = [(0, 1), (0, -1), (1, 0), (-1, 0), (1, 1), (-1, -1), (1, -1), (-1, 1)]
