@@ -215,11 +215,26 @@ class Board:
         if not self.cardLocationIsValidSpot(positionNewCard, positionSecondTile, newCard):
             print("The location where you want to place your card is not valid.")
             return None
-        self.board[positionNewCard[1]][positionNewCard[0]] = newCard.activeSide.tile1
-        self.board[positionSecondTile[1]][positionSecondTile[0]] = newCard.activeSide.tile2
-
-        self.nbrCards += 1
-
+        
+         if int(inputArgs[3]) == 1 and (inputRotCode == 2 or inputRotCode == 4 or inputRotCode == 6 or inputRotCode == 8):
+            self.nbrCards += 1
+            if inputRotCode == 2:
+                self.board[positionNewCard[1] + 1][positionNewCard[0]] = newCard.activeSide.tile1
+                self.board[positionSecondTile[1] - 11][positionSecondTile[0]] = newCard.activeSide.tile2
+            elif inputRotCode == 4:
+                self.board[positionNewCard[1]][positionNewCard[0]] = newCard.activeSide.tile1
+                self.board[positionSecondTile[1] - 12][positionSecondTile[0]] = newCard.activeSide.tile2
+            elif inputRotCode == 6:
+                self.board[positionNewCard[1]][positionNewCard[0]] = newCard.activeSide.tile2
+                self.board[positionSecondTile[1]-10][positionSecondTile[0]] = newCard.activeSide.tile1
+            elif inputRotCode == 8:
+                self.board[positionNewCard[1]+1][positionNewCard[0]] = newCard.activeSide.tile2
+                self.board[positionSecondTile[1] - 13][positionSecondTile[0]] = newCard.activeSide.tile1
+        else:
+            self.board[positionNewCard[1]][positionNewCard[0]] = newCard.activeSide.tile1
+            self.board[positionSecondTile[1]][positionSecondTile[0]] = newCard.activeSide.tile2
+            self.nbrCards += 1
+        
         return (positionNewCard, positionSecondTile)
 
 
@@ -252,7 +267,7 @@ class Board:
             Used to check if we can put a new tile on that location or if it is illegal.
         """
         # Condition 2: Because of how python works, negative indexes are supported, but we want to avoid them
-        if not allValuesPositive([tile1Location[0], tile1Location[1], tile2Location[0], tile2Location[1]]):
+        if not allValuesPositive([tile1Location[0], tile2Location[0]]):
             print("Error: one of the coordinates is negative.")
             return False
 
