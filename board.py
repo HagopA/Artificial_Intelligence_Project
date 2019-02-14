@@ -216,7 +216,7 @@ class Board:
             print("The location where you want to place your card is not valid.")
             return None
         
-         if int(inputArgs[3]) == 1 and (inputRotCode == 2 or inputRotCode == 4 or inputRotCode == 6 or inputRotCode == 8):
+        if int(inputArgs[3]) == 1 and (inputRotCode == 2 or inputRotCode == 4 or inputRotCode == 6 or inputRotCode == 8):
             self.nbrCards += 1
             if inputRotCode == 2:
                 self.board[positionNewCard[1] + 1][positionNewCard[0]] = newCard.activeSide.tile1
