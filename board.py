@@ -13,6 +13,7 @@ def allValuesPositive(arrayValues):
             return False
     return True
 
+
 class Tile:
     """ A tile is identified by whether it is red or white and by whether the dot on it is filled or empty.
         Thus, we use the following legend:
