@@ -102,7 +102,7 @@ class Card:
             return addTuples(position, (1, 0)), position
         elif self.orientation == self.Orientation.up:
             return position, addTuples(position, (0, 1))
-        elif self.orientation == self.Orientation.down:
+        else:  # if self.orientation == self.Orientation.down:
             return addTuples(position, (0, 1)), position
 
     def __str__(self):
@@ -219,24 +219,6 @@ class Board:
 
         self.board[positionFirstTile[1]][positionFirstTile[0]] = newCard.activeSide.tile1
         self.board[positionSecondTile[1]][positionSecondTile[0]] = newCard.activeSide.tile2
-        """
-        if inputRotCode == 2 or inputRotCode == 4 or inputRotCode == 6 or inputRotCode == 8:
-            if inputRotCode == 2:
-                self.board[positionNewCard[1] + 1][positionNewCard[0]] = newCard.activeSide.tile1
-                self.board[positionSecondTile[1] - 11][positionSecondTile[0]] = newCard.activeSide.tile2
-            elif inputRotCode == 4:
-                self.board[positionNewCard[1]][positionNewCard[0]] = newCard.activeSide.tile1
-                self.board[positionSecondTile[1] - 12][positionSecondTile[0]] = newCard.activeSide.tile2
-            elif inputRotCode == 6:
-                self.board[positionNewCard[1]][positionNewCard[0]] = newCard.activeSide.tile2
-                self.board[positionSecondTile[1]-10][positionSecondTile[0]] = newCard.activeSide.tile1
-            elif inputRotCode == 8:
-                self.board[positionNewCard[1]+1][positionNewCard[0]] = newCard.activeSide.tile2
-                self.board[positionSecondTile[1] - 13][positionSecondTile[0]] = newCard.activeSide.tile1
-        else:
-            self.board[positionNewCard[1]][positionNewCard[0]] = newCard.activeSide.tile1
-            self.board[positionSecondTile[1]][positionSecondTile[0]] = newCard.activeSide.tile2
-        """
 
         self.nbrCards += 1
         
@@ -302,15 +284,13 @@ class Board:
                 return False
             # Since we checked conditions 1, 2 and 3b, the card location is valid.
             return True
-        else: # if newCard.orientation == Card.Orientation.up or newCard.orientation == Card.Orientation.down:
-            tile1LocationUnder = (tile1Location[0], tile1Location[1] - 1) \
-                if newCard.orientation == Card.Orientation.up else (tile2Location[0], tile2Location[1] - 1)
-
-            if not isinstance(self.board[tile1LocationUnder[1]][tile1LocationUnder[0]], Tile):
+        else:  # if newCard.orientation == Card.Orientation.up or newCard.orientation == Card.Orientation.down:
+            tileLocationUnderY = min(tile1Location[1], tile2Location[1]) - 1
+            if not isinstance(self.board[tileLocationUnderY][tile1Location[0]], Tile):
                 print("Error: The card would hang over an empty cell, which is not allowed.")
                 return False
-            else:
-                return True
+            # Since we checked conditions 1, 2 and 3b, the card location is valid.
+            return True
 
     def checkWinConditions(self, insertedTilesPos, typeItem):
         offsets = [(0, 1), (0, -1), (1, 0), (-1, 0), (1, 1), (-1, -1), (1, -1), (-1, 1)]
