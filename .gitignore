@@ -106,3 +106,8 @@ venv.bak/
 .mypy_cache/
 
 /.idea/*
+.idea/*
+/.idea/
+.idea/*
+.idea/
+../idea/*
