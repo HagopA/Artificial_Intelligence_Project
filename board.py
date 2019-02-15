@@ -40,12 +40,6 @@ class Tile:
         else:
             return self.dotState
 
-    """ # To remove if we find out we do not need a reference to the player owner
-    def getPlayerOwner(self):
-        # Return the player that owns this tile
-        return self.cardOwner.owner
-    """
-
     def __str__(self):
         # Note: We assume there is no more than 99 different ids
         return self.color.value + self.dotState.value + "%-2d" % self.cardOwner.id
@@ -120,6 +114,7 @@ class Card:
 
 class Board:
     DIMENSIONS_X_Y = (8, 12)
+    # todo: Optimize (if possible), want to avoid having hardcoded dictionary
     CONVERSION_LETTER_TO_NUMBER = {'A': 0, 'B': 1, 'C': 2, 'D': 3, 'E': 4, 'F': 5, 'G': 6, 'H': 7, 'I': 8,
                                 'J': 9, 'K': 10, 'L': 11, 'M': 12, 'N': 13, 'O': 14, 'P': 15, 'R': 16, 'S': 17,
                                 'T': 18, 'U': 19, 'V': 20, 'W': 21, 'X': 22, 'Y': 23, 'Z': 24}
@@ -127,7 +122,7 @@ class Board:
     def __init__(self, maxNbrCards):
         # NOTE: Initially, the board is empty (no cards on it), so no tiles are on it either.
         # We illustrate a location on the board with no tile/card as a string (blank spaces).
-        self.board = [[' ' * 4 for x in range(self.DIMENSIONS_X_Y[0])] for y in range (self.DIMENSIONS_X_Y[1])]
+        self.board = [[' ' * 4 for x in range(self.DIMENSIONS_X_Y[0])] for y in range(self.DIMENSIONS_X_Y[1])]
         self.nbrCards = 0
         # There is at most maxNbrCards cards on the board and we have to ensure no one can insert cards (through the
         # methods we provide) when we reach that quota.
@@ -198,19 +193,21 @@ class Board:
         if self.nbrCards >= self.maxNbrCards:
             print("Error: Cannot insert more than " + self.maxNbrCards + " cards on the board.\n"\
                   "Please do a recycling move instead.")
+            return None
         try:
             inputRotCode = int(inputArgs[1])
         except ValueError:
-            print("The 2nd argument should be an integer and " + inputArgs[1] + " is not.")
+            print("Error: The 2nd argument (rotation code) should be an integer and " + inputArgs[1] + " is not.")
             return None
         if inputRotCode <= 0 or inputRotCode > Card.NBR_ROTATION_CODES:
-            print("Valid rotation codes range from 1 to " + str(Card.NBR_ROTATION_CODES) + ", " +\
+            print("Error: Valid rotation codes range from 1 to " + str(Card.NBR_ROTATION_CODES) + ", " +\
                   "thus " + str(inputRotCode) + " is out of range.")
             return None
 
         newCard = Card(inputRotCode)
         try:
             positionNewCard = self.convertCoordinate((inputArgs[2], int(inputArgs[3])))
+        # todo: implement a more specific exception CardIsInvalid that is raised (thrown) in convertCoordinate
         except Exception:
             print(inputArgs[2] + " " + inputArgs[3] + " does not represent a valid position.")
             return None
@@ -235,7 +232,9 @@ class Board:
         currentPos = tilePos
         while nbrConsecutives < 4:
             nextPos = addTuples(currentPos, offset)
+            # todo: get rid of allValuesPositive check once method optimized
             if not allValuesPositive([nextPos[0], nextPos[1], currentPos[0], currentPos[1]]):
+                print("some values are negative")
                 return False
             if isinstance(self.board[tilePos[1]][tilePos[0]], Tile) \
                 and isinstance(self.board[nextPos[1]][nextPos[0]], Tile) \
@@ -295,11 +294,16 @@ class Board:
             return True
 
     def checkWinConditions(self, insertedTilesPos, typeItem):
-        offsets = [(0, 1), (0, -1), (1, 0), (-1, 0), (1, 1), (-1, -1), (1, -1), (-1, 1)]
+        #todo: Optimization: If it is on the sides, don't look to the direction of the empty void
+        offsets = [(0, -1), (1, 0), (-1, 0), (1, 1), (-1, -1), (1, -1), (-1, 1)]
         for tilePos in insertedTilesPos:
             for offset in offsets:
                 if self.checkFourConsecutive(tilePos, offset, typeItem):
                     return True
+        return False
+
+    def getMaxNbrConsecutiveTiles(self):
+        """        """
 
     def __str__(self):
         outputStr = ''
@@ -339,8 +343,8 @@ def gameLoop():
 
     # Users decide which player they'd like to be
     userInput = input("Enter C if you'd like to play color, or D if you'd like to play dots \n")
-    while (userInput != ''):
-        if (userInput == 'C' or userInput == 'c'):
+    while userInput != '':
+        if userInput == 'C' or userInput == 'c':
                 currentPlayer = p2
                 otherPlayer = p1
                 break
