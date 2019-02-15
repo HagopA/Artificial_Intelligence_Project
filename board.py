@@ -220,7 +220,6 @@ class Board:
             print("The location where you want to place your card is not valid.")
             return None
 
-
         self.board[positionFirstTile[1]][positionFirstTile[0]] = newCard.activeSide.tile1
         self.board[positionSecondTile[1]][positionSecondTile[0]] = newCard.activeSide.tile2
 
