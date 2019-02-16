@@ -1,4 +1,5 @@
 from enum import Enum
+from exceptions import *
 
 # The specifications tell us that there are 24 cards available to be placed on the board (shared between both players).
 NBR_CARDS = 24
@@ -49,9 +50,6 @@ class Tile:
     def __str__(self):
         # Note: We assume there is no more than 99 different ids
         return self.color.value + self.dotState.value + "%-2d" % self.cardOwner.id
-
-    def __repr__(self):
-        return self.__str__()
 
 
 class Side:
@@ -120,14 +118,12 @@ class Card:
 
 class Board:
     DIMENSIONS_X_Y = (8, 12)
-    CONVERSION_LETTER_TO_NUMBER = {'A': 0, 'B': 1, 'C': 2, 'D': 3, 'E': 4, 'F': 5, 'G': 6, 'H': 7, 'I': 8, 'J': 9,
-                                   'K': 10, 'L': 11, 'M': 12, 'N': 13, 'O': 14, 'P': 15, 'R': 16, 'S': 17, 'T': 18,
-                                   'U': 19, 'V': 20, 'W': 21, 'X': 22, 'Y': 23, 'Z': 24}
+    CONVERSION_LETTER_TO_NUMBER = {'A': 0, 'B': 1, 'C': 2, 'D': 3, 'E': 4, 'F': 5, 'G': 6, 'H': 7}
 
     def __init__(self, max_nbr_cards):
         # NOTE: Initially, the board is empty (no cards on it), so no tiles are on it either.
         # We illustrate a location on the board with no tile/card as a string (blank spaces).
-        self.board = [[' ' * 4 for x in range(self.DIMENSIONS_X_Y[0])] for y in range (self.DIMENSIONS_X_Y[1])]
+        self.board = [[' ' * 4 for x in range(self.DIMENSIONS_X_Y[0])] for y in range(self.DIMENSIONS_X_Y[1])]
         self.nbrCards = 0
         # There is at most maxNbrCards cards on the board and we have to ensure no one can insert cards (through the
         # methods we provide) when we reach that quota.
@@ -140,24 +136,23 @@ class Board:
         """
         x_coord = self.convert_letter_to_num(letter_num_coordinate[0])
         if x_coord >= self.DIMENSIONS_X_Y[0]:
-            raise Exception("ERROR: X coordinate " + str(letter_num_coordinate[0]) + " is out of bounds")
+            raise OutOfBoundsException("ERROR: X coordinate " + str(letter_num_coordinate[0]) + " is out of bounds")
         y_coord = letter_num_coordinate[1] - 1
         if y_coord >= self.DIMENSIONS_X_Y[1] or y_coord < 0:
-            raise Exception("ERROR: Y coordinate " + str(letter_num_coordinate[1]) + " is out of bounds")
+            raise OutOfBoundsException("ERROR: Y coordinate " + str(letter_num_coordinate[1]) + " is out of bounds")
         return x_coord, y_coord
 
     def convert_letter_to_num(self, letter):
+        if letter < 'A' or letter > 'H':
+            raise OutOfBoundsException("ERROR: Please select a letter within the board's bounds")
         return self.CONVERSION_LETTER_TO_NUMBER[letter.upper()]
 
     def convert_num_to_letter(self, searched_number):
-        """ NOTE: This is highly inefficient as we have to loop through 24 letters in the worst case.
-            However, this is supposed to only be used for the output that is not required during the tournament
-            (it's for debugging purposes)
-        """
+        if searched_number < 0 or searched_number > 7:
+            raise OutOfBoundsException("ERROR: Please select a number within the bounds of the letters on the board")
         for letter, number in self.CONVERSION_LETTER_TO_NUMBER.items():
             if number == searched_number:
                 return letter
-        raise Exception("No valid conversion from number " + str(searched_number) + " to a letter")
 
     def ask_for_input(self, player):
         inserted_tiles_pos = None
@@ -187,7 +182,7 @@ class Board:
 
     def swap_card(self, args):
         # TODO: implement this method
-        raise Exception("Method not implemented yet (lol)")
+        pass
 
     def insert_card(self, input_args):
         """ Tries to insert card into the board from the inputArgs given by player.
@@ -211,7 +206,8 @@ class Board:
         new_card = Card(input_rot_code)
         try:
             position_new_card = self.convert_coordinate((input_args[2], int(input_args[3])))
-        except Exception:
+        except OutOfBoundsException as e:
+            print(e.message)
             print(input_args[2] + " " + input_args[3] + " does not represent a valid position.")
             return None
         position_first_tile, position_second_tile = new_card.get_tile_positions(position_new_card)
@@ -300,6 +296,7 @@ class Board:
             for offset in offsets:
                 if self.check_four_consecutive(tilePos, offset, type_item):
                     return True
+        return False
 
     def __str__(self):
         output_str = ''
