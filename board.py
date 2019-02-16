@@ -145,13 +145,9 @@ class Board:
         return x_coord, y_coord
 
     def convert_letter_to_num(self, letter):
-        if letter < 'A' or letter > 'H':
-            raise OutOfBoundsException("ERROR: Please select a letter within the board's bounds")
         return self.CONVERSION_LETTER_TO_NUMBER[letter.upper()]
 
     def convert_num_to_letter(self, searched_number):
-        if searched_number < 0 or searched_number > 7:
-            raise OutOfBoundsException("ERROR: Please select a number within the bounds of the letters on the board")
         for letter, number in self.CONVERSION_LETTER_TO_NUMBER.items():
             if number == searched_number:
                 return letter
