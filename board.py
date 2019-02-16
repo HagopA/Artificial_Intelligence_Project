@@ -256,8 +256,9 @@ class Board:
             empty_locations = not isinstance(self.board[tile_1_location[1]][tile_1_location[0]], Tile) and \
                              not isinstance(self.board[tile_2_location[1]][tile_2_location[0]], Tile)
         # Condition 2: Exception raised when at least one of the locations of the card is out of bounds
-        except OutOfBoundsException:
-            print("Error: You cannot place a card on top of other cards.")
+        except ValueError:
+            print("Error: Both squares (tiles) that are part of the card being placed must not have empty tiles at the "
+                  "bottom.")
             return False
 
         if not empty_locations:
