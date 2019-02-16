@@ -275,8 +275,8 @@ class Board:
             tile1_location_y_under = tile_1_location[1] - 1
             tile2_location_y_under = tile_2_location[1] - 1
 
-            occupied_locations = isinstance(self.board[tile1_location_y_under][tile_1_location[0]], Tile) and \
-                                 isinstance(self.board[tile2_location_y_under][tile_2_location[0]], Tile)
+            occupied_locations = (isinstance(self.board[tile1_location_y_under][tile_1_location[0]], Tile) and
+                                  isinstance(self.board[tile2_location_y_under][tile_2_location[0]], Tile))
             if not occupied_locations:
                 print("Error: The card would hang over one or 2 empty cells, which is not allowed.")
                 return False
@@ -336,6 +336,8 @@ def game_loop():
 
     # Users decide which player they'd like to be
     user_input = input("Enter C if you'd like to play color, or D if you'd like to play dots \n")
+    current_player = None
+    other_player = None
     while user_input != '':
         if user_input == 'C' or user_input == 'c':
                 current_player = p2
