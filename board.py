@@ -4,7 +4,15 @@ from exceptions import *
 # The specifications tell us that there are 24 cards available to be placed on the board (shared between both players).
 NBR_CARDS = 24
 
-addTuples = lambda tuple1, tuple2: tuple(x + y for x, y in zip(tuple1, tuple2))
+# lambda expressions shouldn't be assigned to variables in Python, translated this lambda to a function below
+# add_tuples = lambda tuple1, tuple2: tuple(x + y for x, y in zip(tuple1, tuple2))
+
+
+def add_tuples(tuple1, tuple2):
+    a_tup = ()
+    for x, y in zip(tuple1, tuple2):
+        a_tup = a_tup + tuple(x + y)
+    return a_tup
 
 
 def all_values_positive(array_values):
@@ -98,13 +106,13 @@ class Card:
 
     def get_tile_positions(self, position):
         if self.orientation == self.Orientation.right:
-            return position, addTuples(position, (1, 0))
+            return position, add_tuples(position, (1, 0))
         elif self.orientation == self.Orientation.left:
-            return addTuples(position, (1, 0)), position
+            return add_tuples(position, (1, 0)), position
         elif self.orientation == self.Orientation.up:
-            return position, addTuples(position, (0, 1))
+            return position, add_tuples(position, (0, 1))
         else:  # if self.orientation == self.Orientation.down:
-            return addTuples(position, (0, 1)), position
+            return add_tuples(position, (0, 1)), position
 
     def __str__(self):
         # NOTE: This specific "toString" method should only be used for debug purposes
@@ -119,7 +127,7 @@ class Card:
 class Board:
     DIMENSIONS_X_Y = (8, 12)
     CONVERSION_LETTER_TO_NUMBER = {'A': 0, 'B': 1, 'C': 2, 'D': 3, 'E': 4, 'F': 5, 'G': 6, 'H': 7, 'I': 8, 'J': 9,
-                                   'K': 10, 'L': 11, 'M': 12, 'N': 13, 'O': 14, 'P': 15, 'Q' : 16, 'R': 17, 'S': 18,
+                                   'K': 10, 'L': 11, 'M': 12, 'N': 13, 'O': 14, 'P': 15, 'Q': 16, 'R': 17, 'S': 18,
                                    'T': 19, 'U': 20, 'V': 21, 'W': 22, 'X': 23, 'Y': 24, 'Z': 25}
 
     def __init__(self, max_nbr_cards):
@@ -227,7 +235,7 @@ class Board:
         nbr_consecutives = 1
         current_pos = tile_pos
         while nbr_consecutives < 4:
-            next_pos = addTuples(current_pos, offset)
+            next_pos = add_tuples(current_pos, offset)
             if not all_values_positive([next_pos[0], next_pos[1], current_pos[0], current_pos[1]]):
                 return False
             if isinstance(self.board[tile_pos[1]][tile_pos[0]], Tile) \
@@ -256,7 +264,7 @@ class Board:
             empty_locations = not isinstance(self.board[tile_1_location[1]][tile_1_location[0]], Tile) and \
                              not isinstance(self.board[tile_2_location[1]][tile_2_location[0]], Tile)
         # Condition 2: Exception raised when at least one of the locations of the card is out of bounds
-        except Exception:
+        except OutOfBoundsException:
             print("Error: You cannot place a card on top of other cards.")
             return False
 
