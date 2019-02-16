@@ -49,12 +49,6 @@ class Tile:
         else:
             return self.dotState
 
-    """ # To remove if we find out we do not need a reference to the player owner
-    def getPlayerOwner(self):
-        # Return the player that owns this tile
-        return self.cardOwner.owner
-    """
-
     def __str__(self):
         # Note: We assume there is no more than 99 different ids
         return self.color.value + self.dotState.value + "%-2d" % self.cardOwner.id
@@ -199,6 +193,7 @@ class Board:
         if self.nbrCards >= self.maxNbrCards:
             print("Error: Cannot insert more than " + self.maxNbrCards + " cards on the board.\nPlease do a recycling "
                                                                          "move instead.")
+            return None
         try:
             input_rot_code = int(input_args[1])
         except ValueError:
@@ -373,6 +368,5 @@ def game_loop():
         # We switch to the other player
         other_player = current_player
         current_player = p1 if current_player == p2 else p2
-
 
 game_loop()
