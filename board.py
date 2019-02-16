@@ -4,15 +4,12 @@ from exceptions import *
 # The specifications tell us that there are 24 cards available to be placed on the board (shared between both players).
 NBR_CARDS = 24
 
-# lambda expressions shouldn't be assigned to variables in Python, translated this lambda to a function below
+# lambda expressions shouldn't be assigned to variables in Python, should be translated to a function
 # add_tuples = lambda tuple1, tuple2: tuple(x + y for x, y in zip(tuple1, tuple2))
 
 
 def add_tuples(tuple1, tuple2):
-    a_tup = ()
-    for x, y in zip(tuple1, tuple2):
-        a_tup = a_tup + tuple(x + y)
-    return a_tup
+    return tuple(x + y for x, y in zip(tuple1, tuple2))
 
 
 def all_values_positive(array_values):
@@ -368,5 +365,6 @@ def game_loop():
         # We switch to the other player
         other_player = current_player
         current_player = p1 if current_player == p2 else p2
+
 
 game_loop()
