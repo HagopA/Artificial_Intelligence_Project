@@ -12,10 +12,11 @@ def add_tuples(tuple1, tuple2):
     return tuple(x + y for x, y in zip(tuple1, tuple2))
 
 
-def all_values_positive(array_values):
-    for x in array_values:
-        if x < 0:
-            return False
+def all_values_positive(col1, row1, col2, row2):
+    if col1 < 0 or row1 < 0 or col2 < 0 or row2 < 0:
+        return False
+    if col1 > 7 or row1 > 11 or col2 > 7 or row2 > 11:
+        return False
     return True
 
 
@@ -201,6 +202,9 @@ class Board:
         except Exception:
             print(args[2] + " " + args[3] + " does not represent a valid position.")
             return None
+        if card1stTile is None or card2ndTile is None:
+            print("1 or both tile do not have a card on them.")
+            return None
         if card1stTile.cardOwner != card2ndTile.cardOwner:
             print("The 2 tiles selected do not come from the same card. Choose 2 tiles from the same card.")
             return None
@@ -221,47 +225,52 @@ class Board:
             return None
 
         try:
-            inputRotCode = int(args[4])
+            input_rot_code = int(args[4])
         except ValueError:
             print("The 5th argument should be an integer and " + args[5] + " is not.")
             return None
 
         try:
-            positionNewCard = self.convert_coordinate((args[5], int(args[6])))
+            position_new_card = self.convert_coordinate((args[5], int(args[6])))
         except ValueError:
             print(args[5] + " " + args[6] + " does not represent a valid position.")
             return None
-        positionSecondTile = None
-        if card1stTile.rotationCode == inputRotCode:
-            if positionNewCard[0] != min(positionCard1stTile[0], positionCard2ndTile[0]) or positionNewCard[1] != min(
+
+        if card1stTile.rotationCode == input_rot_code:
+            if position_new_card[0] != min(positionCard1stTile[0], positionCard2ndTile[0]) or position_new_card[1] != min(
                     positionCard1stTile[1], positionCard2ndTile[1]):
                 self.board[positionCard1stTile[1]][positionCard1stTile[0]] = None
                 self.board[positionCard2ndTile[1]][positionCard2ndTile[0]] = None
-                newCard = Card(inputRotCode, card1stTile.cardOwner)
-                positionSecondTile = add_tuples(positionNewCard, newCard.getOffsetSecondTileBasedOnOrientation())
-                if not self.card_location_is_valid_spot(positionNewCard, positionSecondTile, newCard):
+                new_card = Card(input_rot_code)
+                position_first_tile, position_second_tile = new_card.get_tile_positions(position_new_card)
+                if not self.card_location_is_valid_spot(position_first_tile, position_second_tile, new_card):
                     print("The location where you want to place your recycled card is not valid.")
+                    self.board[positionCard1stTile[1]][positionCard1stTile[0]] = card1stTile
+                    self.board[positionCard2ndTile[1]][positionCard2ndTile[0]] = card2ndTile
                     return None
 
-                self.board[positionNewCard[1]][positionNewCard[0]] = newCard.activeSide.tile1
-                self.board[positionSecondTile[1]][positionSecondTile[0]] = newCard.activeSide.tile2
+                self.board[position_first_tile[1]][position_first_tile[0]] = new_card.activeSide.tile1
+                self.board[position_second_tile[1]][position_second_tile[0]] = new_card.activeSide.tile2
 
-        elif (card1stTile.rotationCode % 4) == (inputRotCode % 4) and positionNewCard[0] == min(positionCard1stTile[0], positionCard2ndTile[0]) and positionNewCard[1] == min(positionCard1stTile[1], positionCard2ndTile[1]):
+            else:
+                print("You cannot keep the same rotation and position.")
+                return None
+
+        elif (card1stTile.rotationCode % 2) == (input_rot_code % 2) and position_new_card[0] == min(positionCard1stTile[0], positionCard2ndTile[0]) and position_new_card[1] == min(positionCard1stTile[1], positionCard2ndTile[1]):
             self.board[positionCard1stTile[1]][positionCard1stTile[0]] = None
             self.board[positionCard2ndTile[1]][positionCard2ndTile[0]] = None
-            newCard = Card(inputRotCode, card1stTile.cardOwner)
-            positionSecondTile = add_tuples(positionNewCard, newCard.getOffsetSecondTileBasedOnOrientation())
-            self.board[positionNewCard[1]][positionNewCard[0]] = newCard.activeSide.tile1
-            self.board[positionSecondTile[1]][positionSecondTile[0]] = newCard.activeSide.tile2
+            new_card = Card(input_rot_code)
+            position_first_tile, position_second_tile = new_card.get_tile_positions(position_new_card)
+            self.board[position_first_tile[1]][position_first_tile[0]] = new_card.activeSide.tile1
+            self.board[position_second_tile[1]][position_second_tile[0]] = new_card.activeSide.tile2
 
         else:
-            print(
-                "Either change the side of the card and keep it at the same position, or keep the same orientation and move the card.")
+            print("Either change the side of the card and keep it at the same position, or keep the same orientation and move the card.")
             return None
 
         self.recycledCard = card1stTile.cardOwner
 
-        return (positionNewCard, positionSecondTile)
+        return (position_first_tile, position_second_tile)
 
     def insert_card(self, input_args):
         """ Tries to insert card into the board from the inputArgs given by player.
@@ -311,7 +320,7 @@ class Board:
         current_pos = tile_pos
         while nbr_consecutives < 4:
             next_pos = add_tuples(current_pos, offset)
-            if not all_values_positive([next_pos[0], next_pos[1], current_pos[0], current_pos[1]]):
+            if not all_values_positive(next_pos[0], next_pos[1], current_pos[0], current_pos[1]):
                 return False
             if isinstance(self.board[tile_pos[1]][tile_pos[0]], Tile) \
                 and isinstance(self.board[next_pos[1]][next_pos[0]], Tile) \
@@ -342,6 +351,9 @@ class Board:
         except ValueError:
             print("Error: Both squares (tiles) that are part of the card being placed must not have empty tiles at the "
                   "bottom.")
+            return False
+        except IndexError:
+            print("Error: One square is not on a board tile.")
             return False
 
         if not empty_locations:
