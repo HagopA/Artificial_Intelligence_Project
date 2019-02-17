@@ -35,10 +35,11 @@ class Tile:
         filled = 'F'
         empty = 'E'
 
-    def __init__(self, color, dot_state, card_owner):
+    def __init__(self, color, dotState, cardOwner, rotationCode):
         self.color = color
-        self.dotState = dot_state
-        self.cardOwner = card_owner
+        self.dotState = dotState
+        self.cardOwner = cardOwner
+        self.rotationCode = rotationCode
 
     def get_item_key(self, type_item):
         if type_item == Tile.Color:
@@ -74,17 +75,17 @@ class Card:
     # please do not call self.id_count but Card.id_count instead whenever you want to modify the value of the variable.
     id_count = 0
 
-    def __init__(self, rotation_code=1):
+    def __init__(self, rotation_code=1, id=-1):
         """ #Will probably remove, unless we find out for whatever reason that
             #the card needs to know who is the player that placed it
         if len(playerOwner) > 1:
             print("Note: only the first letter of the player's name will be shown in output.")
         self.playerOwner = playerOwner
         """
-        self.side1 = Side(Tile(Tile.Color.red, Tile.DotState.filled, self),
-                          Tile(Tile.Color.white, Tile.DotState.empty, self))
-        self.side2 = Side(Tile(Tile.Color.red, Tile.DotState.empty, self),
-                          Tile(Tile.Color.white, Tile.DotState.filled, self))
+        self.side1 = Side(Tile(Tile.Color.red, Tile.DotState.filled, self, rotation_code),
+                          Tile(Tile.Color.white, Tile.DotState.empty, self, rotation_code))
+        self.side2 = Side(Tile(Tile.Color.red, Tile.DotState.empty, self, rotation_code),
+                          Tile(Tile.Color.white, Tile.DotState.filled, self, rotation_code))
         self.rotationCode = rotation_code
         if self.rotationCode <= self.NBR_ROTATION_CODES / 2:
             self.activeSide = self.side1
@@ -92,8 +93,10 @@ class Card:
         else:
             self.activeSide = self.side2
             self.orientation = self.Orientation(self.rotationCode - self.NBR_ROTATION_CODES / 2)
-        self.id = Card.id_count
-        Card.id_count += 1
+        if id == -1:
+            self.id = Card.id_count
+        else:
+            self.id = id
 
     def get_tile_positions(self, position):
         if self.orientation == self.Orientation.right:
@@ -129,6 +132,7 @@ class Board:
         # There is at most maxNbrCards cards on the board and we have to ensure no one can insert cards (through the
         # methods we provide) when we reach that quota.
         self.maxNbrCards = max_nbr_cards
+        self.recycledCard = 23
 
     def convert_coordinate(self, letter_num_coordinate):
         """ Convert a coordinate in the form [A-Z] [0-9] (eg. A 2) (given as a tuple)
@@ -162,24 +166,102 @@ class Board:
             Return true if we were able to successfully and false otherwise.
         """
         args = input_std.split()
+        if len(args) == 0:
+            print("Enter a move.")
+            return None
         if args[0] == "0":
             if len(args) != 4:
                 print("Input error: Regular moves should have 4 arguments (not " + str(len(args)) + "):")
                 print("0 orientationCode xCoord yCoord")
                 print("Example: 0 5 A 2")
-                return False
+                return None
             return self.insert_card(args)
         else:
             if len(args) != 7:
                 print("Input error: Swap moves should have 7 arguments (not " + str(len(args)) + "):")
                 print("xCoordTile1 yCoordTile1 xCoordTile2 yCoordTile2 newOrientationCode newCoordX newCoordY")
                 print("Example: F 2 F 3 3 A 2")
-                return False
+                return None
             return self.swap_card(args)
 
     def swap_card(self, args):
-        # TODO: implement this method
-        pass
+        if self.nbrCards < self.maxNbrCards:
+            print("Error: Cannot do a recycling move until " + self.maxNbrCards + " cards are on the board.\n" \
+                                                                                  "Please do a normal move instead.")
+            return None
+        try:
+            positionCard1stTile = self.convert_coordinate((args[0], int(args[1])))
+            card1stTile = self.board[positionCard1stTile[1]][positionCard1stTile[0]]
+        except Exception:
+            print(args[2] + " " + args[3] + " does not represent a valid position.")
+            return None
+        try:
+            positionCard2ndTile = self.convert_coordinate((args[2], int(args[3])))
+            card2ndTile = self.board[positionCard2ndTile[1]][positionCard2ndTile[0]]
+        except Exception:
+            print(args[2] + " " + args[3] + " does not represent a valid position.")
+            return None
+        if card1stTile.cardOwner != card2ndTile.cardOwner:
+            print("The 2 tiles selected do not come from the same card. Choose 2 tiles from the same card.")
+            return None
+        if card1stTile.cardOwner == self.recycledCard:
+            print("You cannot move the card that was moved/played last turn. Please choose another card.")
+            return None
+
+        if positionCard2ndTile[1] == positionCard1stTile[1]:
+            if isinstance(self.board[positionCard2ndTile[1]][max(positionCard1stTile[0], positionCard2ndTile[0]) + 1],
+                          Tile):
+                print(
+                    "You cannot move this card, it would leave the board in an illegal state. Please choose another card.")
+                return None
+        elif isinstance(self.board[positionCard1stTile[1]][positionCard1stTile[0] + 1], Tile) or isinstance(
+                self.board[positionCard2ndTile[1]][positionCard2ndTile[0] + 1], Tile):
+            print(
+                "You cannot move this card, it would leave the board in an illegal state. Please choose another card.")
+            return None
+
+        try:
+            inputRotCode = int(args[4])
+        except ValueError:
+            print("The 5th argument should be an integer and " + args[5] + " is not.")
+            return None
+
+        try:
+            positionNewCard = self.convert_coordinate((args[5], int(args[6])))
+        except ValueError:
+            print(args[5] + " " + args[6] + " does not represent a valid position.")
+            return None
+        positionSecondTile = None
+        if card1stTile.rotationCode == inputRotCode:
+            if positionNewCard[0] != min(positionCard1stTile[0], positionCard2ndTile[0]) or positionNewCard[1] != min(
+                    positionCard1stTile[1], positionCard2ndTile[1]):
+                self.board[positionCard1stTile[1]][positionCard1stTile[0]] = None
+                self.board[positionCard2ndTile[1]][positionCard2ndTile[0]] = None
+                newCard = Card(inputRotCode, card1stTile.cardOwner)
+                positionSecondTile = add_tuples(positionNewCard, newCard.getOffsetSecondTileBasedOnOrientation())
+                if not self.card_location_is_valid_spot(positionNewCard, positionSecondTile, newCard):
+                    print("The location where you want to place your recycled card is not valid.")
+                    return None
+
+                self.board[positionNewCard[1]][positionNewCard[0]] = newCard.activeSide.tile1
+                self.board[positionSecondTile[1]][positionSecondTile[0]] = newCard.activeSide.tile2
+
+        elif (card1stTile.rotationCode % 4) == (inputRotCode % 4) and positionNewCard[0] == min(positionCard1stTile[0], positionCard2ndTile[0]) and positionNewCard[1] == min(positionCard1stTile[1], positionCard2ndTile[1]):
+            self.board[positionCard1stTile[1]][positionCard1stTile[0]] = None
+            self.board[positionCard2ndTile[1]][positionCard2ndTile[0]] = None
+            newCard = Card(inputRotCode, card1stTile.cardOwner)
+            positionSecondTile = add_tuples(positionNewCard, newCard.getOffsetSecondTileBasedOnOrientation())
+            self.board[positionNewCard[1]][positionNewCard[0]] = newCard.activeSide.tile1
+            self.board[positionSecondTile[1]][positionSecondTile[0]] = newCard.activeSide.tile2
+
+        else:
+            print(
+                "Either change the side of the card and keep it at the same position, or keep the same orientation and move the card.")
+            return None
+
+        self.recycledCard = card1stTile.cardOwner
+
+        return (positionNewCard, positionSecondTile)
 
     def insert_card(self, input_args):
         """ Tries to insert card into the board from the inputArgs given by player.
@@ -217,6 +299,7 @@ class Board:
         self.board[position_second_tile[1]][position_second_tile[0]] = new_card.activeSide.tile2
 
         self.nbrCards += 1
+        Card.id_count += 1
 
         return position_new_card, position_second_tile
 
@@ -337,8 +420,10 @@ def game_loop():
     user_input = input("Enter C if you'd like to play color, or D if you'd like to play dots \n")
     current_player = None
     other_player = None
-    while user_input != '':
-        if user_input == 'C' or user_input == 'c':
+    while True:
+        if len(user_input) == 0:
+                user_input = input("Please enter C or D \n")
+        elif user_input == 'C' or user_input == 'c':
                 current_player = p2
                 other_player = p1
                 break
