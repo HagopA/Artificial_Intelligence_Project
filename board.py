@@ -15,7 +15,7 @@ def add_tuples(tuple1, tuple2):
 def all_values_positive(col1, row1, col2, row2):
     if col1 < 0 or row1 < 0 or col2 < 0 or row2 < 0:
         return False
-    if col1 > 7 or row1 > 11 or col2 > 7 or row2 > 11:
+    if col1 > Board.DIMENSIONS_X_Y[0] - 1 or row1 > Board.DIMENSIONS_X_Y[1] - 1 or col2 > Board.DIMENSIONS_X_Y[0] - 1 or row2 > Board.DIMENSIONS_X_Y[1] - 1:
         return False
     return True
 
@@ -50,7 +50,7 @@ class Tile:
 
     def __str__(self):
         # Note: We assume there is no more than 99 different ids
-        return self.color.value + self.dotState.value + "%-2d" % self.cardOwner.id
+        return self.color.value + self.dotState.value + "%-2d" % self.cardOwner
 
 
 class Side:
@@ -83,10 +83,14 @@ class Card:
             print("Note: only the first letter of the player's name will be shown in output.")
         self.playerOwner = playerOwner
         """
-        self.side1 = Side(Tile(Tile.Color.red, Tile.DotState.filled, self, rotation_code),
-                          Tile(Tile.Color.white, Tile.DotState.empty, self, rotation_code))
-        self.side2 = Side(Tile(Tile.Color.red, Tile.DotState.empty, self, rotation_code),
-                          Tile(Tile.Color.white, Tile.DotState.filled, self, rotation_code))
+        if id == -1:
+            self.id = Card.id_count
+        else:
+            self.id = id
+        self.side1 = Side(Tile(Tile.Color.red, Tile.DotState.filled, self.id, rotation_code),
+                          Tile(Tile.Color.white, Tile.DotState.empty, self.id, rotation_code))
+        self.side2 = Side(Tile(Tile.Color.red, Tile.DotState.empty, self.id, rotation_code),
+                          Tile(Tile.Color.white, Tile.DotState.filled, self.id, rotation_code))
         self.rotationCode = rotation_code
         if self.rotationCode <= self.NBR_ROTATION_CODES / 2:
             self.activeSide = self.side1
@@ -133,7 +137,7 @@ class Board:
         # There is at most maxNbrCards cards on the board and we have to ensure no one can insert cards (through the
         # methods we provide) when we reach that quota.
         self.maxNbrCards = max_nbr_cards
-        self.recycledCard = 23
+        self.recycled_card = 23
 
     def convert_coordinate(self, letter_num_coordinate):
         """ Convert a coordinate in the form [A-Z] [0-9] (eg. A 2) (given as a tuple)
@@ -186,67 +190,85 @@ class Board:
             return self.swap_card(args)
 
     def swap_card(self, args):
+        # Check if you should recycle on this turn
         if self.nbrCards < self.maxNbrCards:
             print("Error: Cannot do a recycling move until " + self.maxNbrCards + " cards are on the board.\n" \
                                                                                   "Please do a normal move instead.")
             return None
+
+        # Check if the first 4 inputs give you a position
         try:
-            positionCard1stTile = self.convert_coordinate((args[0], int(args[1])))
-            card1stTile = self.board[positionCard1stTile[1]][positionCard1stTile[0]]
+            position_card_1st_tile = self.convert_coordinate((args[0], int(args[1])))
+            card_1st_tile = self.board[position_card_1st_tile[1]][position_card_1st_tile[0]]
         except Exception:
             print(args[2] + " " + args[3] + " does not represent a valid position.")
             return None
         try:
-            positionCard2ndTile = self.convert_coordinate((args[2], int(args[3])))
-            card2ndTile = self.board[positionCard2ndTile[1]][positionCard2ndTile[0]]
+            position_card_2nd_tile = self.convert_coordinate((args[2], int(args[3])))
+            card2nd_tile = self.board[position_card_2nd_tile[1]][position_card_2nd_tile[0]]
         except Exception:
             print(args[2] + " " + args[3] + " does not represent a valid position.")
             return None
-        if card1stTile is None or card2ndTile is None:
+
+        # Check if the position are tiles with cards on them
+        if isinstance(card_1st_tile, str) or isinstance(card2nd_tile, str):
             print("1 or both tile do not have a card on them.")
             return None
-        if card1stTile.cardOwner != card2ndTile.cardOwner:
+
+        # Checks if the tiles come from the same card
+        if card_1st_tile.cardOwner != card2nd_tile.cardOwner:
             print("The 2 tiles selected do not come from the same card. Choose 2 tiles from the same card.")
             return None
-        if card1stTile.cardOwner == self.recycledCard:
+
+        # Makes sure the last card used isn't the one being played now
+        if card_1st_tile.cardOwner == self.recycled_card:
             print("You cannot move the card that was moved/played last turn. Please choose another card.")
             return None
 
-        if positionCard2ndTile[1] == positionCard1stTile[1]:
-            if isinstance(self.board[positionCard2ndTile[1]][max(positionCard1stTile[0], positionCard2ndTile[0]) + 1],
+        # Checks to see if there is a tile used over the chosen card, so that the board won't become illegal
+        if position_card_2nd_tile[0] == position_card_1st_tile[0]:
+            if isinstance(self.board[max(position_card_1st_tile[1], position_card_2nd_tile[1]) + 1][position_card_1st_tile[0]],
                           Tile):
                 print(
                     "You cannot move this card, it would leave the board in an illegal state. Please choose another card.")
                 return None
-        elif isinstance(self.board[positionCard1stTile[1]][positionCard1stTile[0] + 1], Tile) or isinstance(
-                self.board[positionCard2ndTile[1]][positionCard2ndTile[0] + 1], Tile):
+        elif isinstance(self.board[position_card_1st_tile[1] + 1][position_card_1st_tile[0]], Tile) or isinstance(
+                self.board[position_card_2nd_tile[1] + 1][position_card_2nd_tile[0]], Tile):
             print(
                 "You cannot move this card, it would leave the board in an illegal state. Please choose another card.")
             return None
 
+        # Checks that the 5th argument is a rotation code
         try:
             input_rot_code = int(args[4])
         except ValueError:
             print("The 5th argument should be an integer and " + args[5] + " is not.")
             return None
+        if input_rot_code <= 0 or input_rot_code > Card.NBR_ROTATION_CODES:
+            print("Valid rotation codes range from 1 to " + str(Card.NBR_ROTATION_CODES) + ", " + "thus " +
+                  str(input_rot_code) + " is out of range.")
+            return None
 
+        # Gets the new position of the card
         try:
             position_new_card = self.convert_coordinate((args[5], int(args[6])))
         except ValueError:
             print(args[5] + " " + args[6] + " does not represent a valid position.")
             return None
 
-        if card1stTile.rotationCode == input_rot_code:
-            if position_new_card[0] != min(positionCard1stTile[0], positionCard2ndTile[0]) or position_new_card[1] != min(
-                    positionCard1stTile[1], positionCard2ndTile[1]):
-                self.board[positionCard1stTile[1]][positionCard1stTile[0]] = None
-                self.board[positionCard2ndTile[1]][positionCard2ndTile[0]] = None
-                new_card = Card(input_rot_code)
+        # Check if the card as the same rotation code and a different location, to be a legal recycle move
+        if card_1st_tile.rotationCode == input_rot_code:
+            if position_new_card[0] != min(position_card_1st_tile[0], position_card_2nd_tile[0]) or position_new_card[1] != min(position_card_1st_tile[1], position_card_2nd_tile[1]):
+                self.board[position_card_1st_tile[1]][position_card_1st_tile[0]] = ' ' * 4
+                self.board[position_card_2nd_tile[1]][position_card_2nd_tile[0]] = ' ' * 4
+                new_card = Card(input_rot_code, card_1st_tile.cardOwner)
                 position_first_tile, position_second_tile = new_card.get_tile_positions(position_new_card)
+
+                # The new position is tested for legality. If it is illegal, the cards is placed back
                 if not self.card_location_is_valid_spot(position_first_tile, position_second_tile, new_card):
                     print("The location where you want to place your recycled card is not valid.")
-                    self.board[positionCard1stTile[1]][positionCard1stTile[0]] = card1stTile
-                    self.board[positionCard2ndTile[1]][positionCard2ndTile[0]] = card2ndTile
+                    self.board[position_card_1st_tile[1]][position_card_1st_tile[0]] = card_1st_tile
+                    self.board[position_card_2nd_tile[1]][position_card_2nd_tile[0]] = card2nd_tile
                     return None
 
                 self.board[position_first_tile[1]][position_first_tile[0]] = new_card.activeSide.tile1
@@ -256,11 +278,19 @@ class Board:
                 print("You cannot keep the same rotation and position.")
                 return None
 
-        elif (card1stTile.rotationCode % 2) == (input_rot_code % 2) and position_new_card[0] == min(positionCard1stTile[0], positionCard2ndTile[0]) and position_new_card[1] == min(positionCard1stTile[1], positionCard2ndTile[1]):
-            self.board[positionCard1stTile[1]][positionCard1stTile[0]] = None
-            self.board[positionCard2ndTile[1]][positionCard2ndTile[0]] = None
-            new_card = Card(input_rot_code)
+        # If it isn't the same rotation, check if it is the same placement
+        elif position_new_card[0] == min(position_card_1st_tile[0], position_card_2nd_tile[0]) and position_new_card[1] == min(position_card_1st_tile[1], position_card_2nd_tile[1]):
+            self.board[position_card_1st_tile[1]][position_card_1st_tile[0]] = ' ' * 4
+            self.board[position_card_2nd_tile[1]][position_card_2nd_tile[0]] = ' ' * 4
+            new_card = Card(input_rot_code, card_1st_tile.cardOwner)
             position_first_tile, position_second_tile = new_card.get_tile_positions(position_new_card)
+
+            # The new position is tested for legality. If it is illegal, the cards is placed back
+            if not self.card_location_is_valid_spot(position_first_tile, position_second_tile, new_card):
+                print("The orientation where you want to place your recycled card is not valid.")
+                self.board[position_card_1st_tile[1]][position_card_1st_tile[0]] = card_1st_tile
+                self.board[position_card_2nd_tile[1]][position_card_2nd_tile[0]] = card2nd_tile
+                return None
             self.board[position_first_tile[1]][position_first_tile[0]] = new_card.activeSide.tile1
             self.board[position_second_tile[1]][position_second_tile[0]] = new_card.activeSide.tile2
 
@@ -268,9 +298,10 @@ class Board:
             print("Either change the side of the card and keep it at the same position, or keep the same orientation and move the card.")
             return None
 
-        self.recycledCard = card1stTile.cardOwner
+        # Make sure the same card can't be recycled twice
+        self.recycled_card = card_1st_tile.cardOwner
 
-        return (position_first_tile, position_second_tile)
+        return [position_first_tile, position_second_tile]
 
     def insert_card(self, input_args):
         """ Tries to insert card into the board from the inputArgs given by player.
@@ -310,7 +341,7 @@ class Board:
         self.nbrCards += 1
         Card.id_count += 1
 
-        return position_new_card, position_second_tile
+        return [position_new_card, position_second_tile]
 
     def check_four_consecutive(self, tile_pos, offset, type_item):
         """ Check whether or not there are 4 consecutive tiles with the same state of the type item
@@ -399,6 +430,8 @@ class Board:
             current_row_str = "%2d" % (row_index + 1) + ' '
             for colVal in row:
                 current_row_str += '|' + str(colVal)
+
+
             current_row_str += '|\n'
             output_str = current_row_str + output_str
             row_index += 1
