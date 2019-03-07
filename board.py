@@ -160,17 +160,17 @@ class Board:
         full_red = 0
         for x in range(0,8):
             for y in range(0,13):
-                    if self.board.DIMENSIONS_X_Y[x][y] is not None:
+                    if self.board[x][y] is not None:
                         x = str(x)
                         y = str(y)
                         coord_value = self.HEURISTIC_BOARD_CONVERSION[x+y]
-                        if Tile.color.value == 'W' and Tile.dotState.value == 'E':
+                        if Tile.Color.value == 'W' and Tile.DotState.value == 'E':
                             empty_white + coord_value
-                        elif Tile.color.value == 'W' and Tile.dotState.value == 'F':
+                        elif Tile.Color.value == 'W' and Tile.DotState.value == 'F':
                             full_white + coord_value
-                        elif Tile.color.value == 'R' and Tile.dotState.value == 'E':
+                        elif Tile.Color.value == 'R' and Tile.DotState.value == 'E':
                             empty_red + coord_value
-                        elif Tile.color.value == 'R' and Tile.dotState.value == 'F':
+                        elif Tile.Color.value == 'R' and Tile.DotState.value == 'F':
                             full_red + coord_value
         evaluation_func = empty_white + 3 * full_white - 2 * full_red - 1.5 * empty_red
         return evaluation_func
@@ -510,6 +510,19 @@ def game_loop():
     b = Board(NBR_CARDS)
     p1 = DotPlayer()
     p2 = ColorPlayer()
+
+    # trace_input = input("Would you like to produce a trace of the minimax? Enter Y for yes or N for no \n" )
+    # while True:
+    #     if len(trace_input) == 0:
+    #         trace_input = input("Please enter Y or N \n")
+    #     elif trace_input == 'Y' or trace_input == 'y':
+    #         # call trace method
+    #         break
+    #     elif trace_input == 'N' or trace_input == 'n':
+    #         break
+    #     else:
+    #         trace_input = input("Invalid entry. Please try again \n")
+
     # Users decide which player they'd like to be
     user_input = input("Enter C if you'd like to play color, or D if you'd like to play dots \n")
     current_player = None
