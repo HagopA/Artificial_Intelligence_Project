@@ -129,6 +129,11 @@ class Board:
     CONVERSION_LETTER_TO_NUMBER = {'A': 0, 'B': 1, 'C': 2, 'D': 3, 'E': 4, 'F': 5, 'G': 6, 'H': 7, 'I': 8, 'J': 9,
                                    'K': 10, 'L': 11, 'M': 12, 'N': 13, 'O': 14, 'P': 15, 'Q': 16, 'R': 17, 'S': 18,
                                    'T': 19, 'U': 20, 'V': 21, 'W': 22, 'X': 23, 'Y': 24, 'Z': 25}
+
+    # Conversion board to be used for the application of the naive heuristic
+    # Keys are represented by coordinate pairs.
+    # Example: '24' represents coordinate (2,4). '512' represents coordinate (5,12).
+    # The associated value is the numeric weight assigned to that coordinate (given by the prof)
     HEURISTIC_BOARD_CONVERSION = {
         '012': 121, '112': 122, '212': 123, '312': 124, '412': 125, '512': 126, '612': 127, '712': 812,
         '011': 111, '111': 112, '211': 113, '311': 114, '411': 115, '511': 116, '611': 117, '711': 811,
@@ -144,6 +149,10 @@ class Board:
         '01': 11, '11': 12, '21': 13, '31': 14, '41': 15, '51': 16, '61': 17, '71': 81,
         '00': 1, '10': 2, '20': 3, '30': 4, '40': 5, '50': 6, '60': 7, '70': 8, }
 
+    # Looping through the board
+    # For all coordinates with a card placed on it, we determine if it's red/white and empty/filled
+    # The coordinate is also used to find the positions 'weight' using the dict above
+    # Based on the formula, the evaluation function is calculated
     def heuristic(self):
         empty_white = 0
         full_white = 0
@@ -187,7 +196,6 @@ class Board:
         y_coord = letter_num_coordinate[1] - 1
         if y_coord >= self.DIMENSIONS_X_Y[1] or y_coord < 0:
             raise OutOfBoundsException("ERROR: Y coordinate " + str(letter_num_coordinate[1]) + " is out of bounds")
-        print (x_coord, y_coord)
         return x_coord, y_coord
 
     def convert_letter_to_num(self, letter):
