@@ -165,13 +165,13 @@ class Board:
                         y = str(y)
                         coord_value = self.HEURISTIC_BOARD_CONVERSION[x+y]
                         if Tile.Color.value == 'W' and Tile.DotState.value == 'E':
-                            empty_white + coord_value
+                            empty_white += coord_value
                         elif Tile.Color.value == 'W' and Tile.DotState.value == 'F':
-                            full_white + coord_value
+                            full_white += coord_value
                         elif Tile.Color.value == 'R' and Tile.DotState.value == 'E':
-                            empty_red + coord_value
+                            empty_red += coord_value
                         elif Tile.Color.value == 'R' and Tile.DotState.value == 'F':
-                            full_red + coord_value
+                            full_red += coord_value
         evaluation_func = empty_white + 3 * full_white - 2 * full_red - 1.5 * empty_red
         return evaluation_func
 
