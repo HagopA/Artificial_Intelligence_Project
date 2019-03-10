@@ -215,9 +215,9 @@ class Board:
 
     def ai_move(self, tracing):
         aiMove = findMinimax(self, tracing)
-        self.insert_card_direct(aiMove[0], aiMove[1])
-        return aiMove
-
+        self.nbrCards += 1
+        Card.id_count += 1
+        return self.insert_card_direct(aiMove[0], aiMove[1])
 
     def removeCard(self, new_card, position):
 
@@ -438,6 +438,7 @@ class Board:
         position_first_tile, position_second_tile = new_card.get_tile_positions(position)
         self.board[position_first_tile[1]][position_first_tile[0]] = new_card.activeSide.tile1
         self.board[position_second_tile[1]][position_second_tile[0]] = new_card.activeSide.tile2
+        return (position_first_tile, position_second_tile)
 
     def check_four_consecutive(self, tile_pos, offset, type_item):
         """ Check whether or not there are 4 consecutive tiles with the same state of the type item
@@ -519,14 +520,12 @@ class Board:
                     return True
         return False
 
-    @toggle_printing_off_decorator
+    #@toggle_printing_off_decorator
     def check_four_consecutive(self, tile_pos, offset, type_item):
         """ Check whether or not there are 4 consecutive tiles with the same state of the type item
             from tilePos in the direction of the offset (offset can be seen as a normalized direction vector).
         """
-        print (self.get_nbr_matching_tiles_in_offset_direction(tile_pos, offset, type_item))
         nbr_consecutives = 1 + self.get_nbr_matching_tiles_in_offset_direction(tile_pos, offset, type_item)
-        #print (nbr_consecutives)
         # We never need to check the direction directly up from the inserted tile (offset (1, 1)) because it is
         # impossible to find a match in that direction.
         # If the number of consecutive tiles found is smaller than 4, then search in the opposite direction
@@ -534,8 +533,6 @@ class Board:
             opposite_direction_offset = get_negative_tuple(offset)
             nbr_consecutives += self.get_nbr_matching_tiles_in_offset_direction(
                                                             tile_pos, opposite_direction_offset, type_item)
-            print(self.get_nbr_matching_tiles_in_offset_direction(
-                                                            tile_pos, opposite_direction_offset, type_item))
         return nbr_consecutives >= 4
 
     def get_nbr_matching_tiles_in_offset_direction(self, tile_pos, offset, type_item):
@@ -561,6 +558,7 @@ class Board:
             if self.isInRecyclingPhase():
                 return self.generate_valid_recycling_moves()
             else:
+                print ("is in not recycling")
                 return self.generate_valid_regular_moves()
 
     def generate_valid_recycling_moves(self):
