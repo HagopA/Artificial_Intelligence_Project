@@ -296,14 +296,14 @@ class Board:
             print(args[5] + " " + args[6] + " does not represent a valid position.")
             return None
 
-        # Check if the card as the same rotation code and a different location, to be a legal recycle move
+        # Check if the card has the same rotation code and a different location, to be a legal recycle move
         if not(card_1st_tile.rotationCode == input_rot_code and position_new_card[0] == min(position_card_1st_tile[0], position_card_2nd_tile[0]) and position_new_card[1] == min(position_card_1st_tile[1], position_card_2nd_tile[1])):
             self.board[position_card_1st_tile[1]][position_card_1st_tile[0]] = ' ' * 4
             self.board[position_card_2nd_tile[1]][position_card_2nd_tile[0]] = ' ' * 4
             new_card = Card(input_rot_code, card_1st_tile.cardOwner)
             position_first_tile, position_second_tile = new_card.get_tile_positions(position_new_card)
 
-            # The new position is tested for legality. If it is illegal, the cards is placed back
+            # The new position is tested for legality. If it is illegal, the card is placed back
             if not self.card_location_is_valid_spot(position_first_tile, position_second_tile, new_card):
                 print("The location where you want to place your recycled card is not valid.")
                 self.board[position_card_1st_tile[1]][position_card_1st_tile[0]] = card_1st_tile
