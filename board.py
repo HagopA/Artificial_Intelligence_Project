@@ -8,6 +8,10 @@ NBR_CARDS = 24
 # The specifications tell us that there are a maximum of 60 moves, after which the game ends in a draw.
 MAX_NBR_MOVES = 60
 
+position_first_tile = None
+position_second_tile = None
+new_card = None
+
 # lambda expressions shouldn't be assigned to variables in Python, should be translated to a function
 # add_tuples = lambda tuple1, tuple2: tuple(x + y for x, y in zip(tuple1, tuple2))
 
@@ -305,10 +309,8 @@ class Board:
             print(args[5] + " " + args[6] + " does not represent a valid position.")
             return None
 
-        position_first_tile, position_second_tile, new_card = \
-            self.isValidRecyclingMove(card_1st_tile, card_2nd_tile, input_rot_code, position_new_card,
-                                        position_card_1st_tile, position_card_2nd_tile)
-        if position_first_tile is not None:
+        if self.isValidRecyclingMove(card_1st_tile, card_2nd_tile, input_rot_code, position_new_card,
+                                        position_card_1st_tile, position_card_2nd_tile):
             self.board[position_card_1st_tile[1]][position_card_1st_tile[0]] = ' ' * 4
             self.board[position_card_2nd_tile[1]][position_card_2nd_tile[0]] = ' ' * 4
             self.board[position_first_tile[1]][position_first_tile[0]] = new_card.activeSide.tile1
@@ -321,6 +323,10 @@ class Board:
 
     def isValidRecyclingMove(self, card_1st_tile, card_2nd_tile, input_rot_code, position_new_card,
                              position_card_1st_tile, position_card_2nd_tile):
+        global position_first_tile
+        global position_second_tile
+        global new_card
+
         # Makes sure the last card used isn't the one being played now
         if card_1st_tile.cardOwner == self.recycled_card:
             print("You cannot move the card that was moved/played last turn. Please choose another card.")
@@ -343,7 +349,7 @@ class Board:
             self.board[position_card_1st_tile[1]][position_card_1st_tile[0]] = card_1st_tile
             self.board[position_card_2nd_tile[1]][position_card_2nd_tile[0]] = card_2nd_tile
 
-            return position_first_tile, position_second_tile, new_card
+            return True
 
         print("You cannot keep the same rotation and position.")
         return False
