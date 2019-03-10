@@ -18,6 +18,8 @@ new_card = None
 def add_tuples(tuple1, tuple2):
     return tuple(x + y for x, y in zip(tuple1, tuple2))
 
+def get_negative_tuple(tupleVar):
+    return tuple(-x for x in tupleVar)
 
 def all_values_positive(col1, row1, col2, row2):
     if col1 < 0 or row1 < 0 or col2 < 0 or row2 < 0:
@@ -394,26 +396,6 @@ class Board:
 
         return [position_new_card, position_second_tile]
 
-    def check_four_consecutive(self, tile_pos, offset, type_item):
-        """ Check whether or not there are 4 consecutive tiles with the same state of the type item
-            from tilePos in the direction of the offset (offset can be seen as a normalized direction vector).
-        """
-        nbr_consecutives = 1
-        current_pos = tile_pos
-        while nbr_consecutives < 4:
-            next_pos = add_tuples(current_pos, offset)
-            if not all_values_positive(next_pos[0], next_pos[1], current_pos[0], current_pos[1]):
-                return False
-            if isinstance(self.board[tile_pos[1]][tile_pos[0]], Tile) \
-                and isinstance(self.board[next_pos[1]][next_pos[0]], Tile) \
-                and self.board[tile_pos[1]][tile_pos[0]].get_item_key(type_item) == \
-                    self.board[next_pos[1]][next_pos[0]].get_item_key(type_item):
-                    nbr_consecutives += 1
-            else:
-                break
-            current_pos = next_pos
-        return nbr_consecutives >= 4
-
     def card_location_is_valid_spot(self, tile_1_location, tile_2_location, new_card):
         """ Return whether or not the given location in the 2d-dimensional array is valid.
             To be valid, it has to:
@@ -467,13 +449,46 @@ class Board:
             return True
 
     def check_win_conditions(self, insert_tiles_pos, type_item):
-        offsets = [(0, 1), (0, -1), (1, 0), (-1, 0), (1, 1), (-1, -1), (1, -1), (-1, 1)]
-        # todo: Optimize this so that directions where no four consecutive tiles could possible be aligned are ignored.
+        offsets = [(0, 1), (1, 0), (1, 1), (1, -1)]
         for tilePos in insert_tiles_pos:
             for offset in offsets:
                 if self.check_four_consecutive(tilePos, offset, type_item):
                     return True
         return False
+
+    def check_four_consecutive(self, tile_pos, offset, type_item):
+        """ Check whether or not there are 4 consecutive tiles with the same state of the type item
+            from tilePos in the direction of the offset (offset can be seen as a normalized direction vector).
+        """
+        print (self.get_nbr_matching_tiles_in_offset_direction(tile_pos, offset, type_item))
+        nbr_consecutives = 1 + self.get_nbr_matching_tiles_in_offset_direction(tile_pos, offset, type_item)
+        #print (nbr_consecutives)
+        # We never need to check the direction directly up from the inserted tile (offset (1, 1)) because it is
+        # impossible to find a match in that direction.
+        # If the number of consecutive tiles found is smaller than 4, then search in the opposite direction
+        if offset != (-1, -1) and nbr_consecutives < 4:
+            opposite_direction_offset = get_negative_tuple(offset)
+            nbr_consecutives += self.get_nbr_matching_tiles_in_offset_direction(
+                                                            tile_pos, opposite_direction_offset, type_item)
+            print(self.get_nbr_matching_tiles_in_offset_direction(
+                                                            tile_pos, opposite_direction_offset, type_item))
+        return nbr_consecutives >= 4
+
+    def get_nbr_matching_tiles_in_offset_direction(self, tile_pos, offset, type_item):
+        nbr_consecutives = 0
+        current_pos = tile_pos
+        while nbr_consecutives < 4:
+            next_pos = add_tuples(current_pos, offset)
+            if all_values_positive(next_pos[0], next_pos[1], current_pos[0], current_pos[1]) and \
+                    isinstance(self.board[tile_pos[1]][tile_pos[0]], Tile) \
+                and isinstance(self.board[next_pos[1]][next_pos[0]], Tile) \
+                and self.board[tile_pos[1]][tile_pos[0]].get_item_key(type_item) == \
+                    self.board[next_pos[1]][next_pos[0]].get_item_key(type_item):
+                    nbr_consecutives += 1
+            else:
+                break
+            current_pos = next_pos
+        return nbr_consecutives
 
     #@toggle_printing_off_decorator
     def generate_valid_next_moves(self):
@@ -657,12 +672,12 @@ def game_loop():
         else:
             user_input = input("Invalid entry. Please try again \n")
 
-    nbrMoves = 0
-    while nbrMoves < MAX_NBR_MOVES:
+    nbr_moves = 0
+    while nbr_moves < MAX_NBR_MOVES:
         inserted_tiles_pos = b.ask_for_input(current_player.name)
         print(b)
-        for valid_move in b.generate_valid_next_moves():
-            print (valid_move)
+       # for valid_move in b.generate_valid_next_moves():
+       #     print (valid_move)
         if b.nbrCards >= 4:
             # Even if the other player wins at the same time as the current player, the current player has
             # the priority.
@@ -678,7 +693,8 @@ def game_loop():
         other_player = current_player
         current_player = p1 if current_player == p2 else p2
         # It is a 2 player game, so 2 moves per turn
-        nbrMoves += 2
+        nbr_moves += 2
     print (str(MAX_NBR_MOVES) + " have been played. Thus, the game ends in a DRAW!! Congratulations to both players!")
 
 game_loop()
+
