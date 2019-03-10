@@ -1,13 +1,14 @@
 from enum import Enum
 from exceptions import *
 from trace import *
+from printingDisabler import *
+import copy
 
 # The specifications tell us that there are 24 cards available to be placed on the board (shared between both players).
 NBR_CARDS = 24
 
 # lambda expressions shouldn't be assigned to variables in Python, should be translated to a function
 # add_tuples = lambda tuple1, tuple2: tuple(x + y for x, y in zip(tuple1, tuple2))
-
 
 def add_tuples(tuple1, tuple2):
     return tuple(x + y for x, y in zip(tuple1, tuple2))
@@ -19,6 +20,38 @@ def all_values_positive(col1, row1, col2, row2):
     if col1 > Board.DIMENSIONS_X_Y[0] - 1 or row1 > Board.DIMENSIONS_X_Y[1] - 1 or col2 > Board.DIMENSIONS_X_Y[0] - 1 or row2 > Board.DIMENSIONS_X_Y[1] - 1:
         return False
     return True
+
+
+def findMinimax(board):
+    level2Array = []
+    level3Nodes = 0
+    for move in board.generate_valid_next_moves():
+        board.insert_card_direct(move[0], move[1])
+        level2Heuristic = 1000000
+        for level3move in board.generate_valid_next_moves():
+            board.insert_card_direct(level3move[0], level3move[1])
+            level3Heuristic = board.heuristic()
+            if level3Heuristic < level2Heuristic:
+                level2Heuristic = level3Heuristic
+            board.removeCard(level3move[0], level3move[1])
+            level3Nodes += 1
+        if level2Heuristic == 1000000:
+            level2Heuristic = board.heuristic()
+        level2Array.append([level2Heuristic, move])
+        board.removeCard(move[0], move[1])
+
+    chosenHeuristic = level2Array[0][0]
+    moveChosen = level2Array[0][1]
+    for level2 in level2Array:
+        if (level2[0] > chosenHeuristic):
+            chosenHeuristic = level2[0]
+            moveChosen = level2[1]
+
+    if tracing != None:
+        tracing.addLevel3(level3Nodes, chosenHeuristic)
+        tracing.addLevel2(level2Array)
+
+    return moveChosen
 
 
 class Tile:
@@ -140,36 +173,6 @@ class Board:
         for j in range(0, DIMENSIONS_X_Y[0]):
             heuristic_board_conversion[str(j) + str(i)] = i * 10 + (j + 1)
 
-    # Looping through the board
-    # For all coordinates with a card placed on it, we determine if it's red/white and empty/filled
-    # The coordinate is also used to find the positions 'weight' using the dict above
-    # Based on the formula, the evaluation function is calculated
-    def heuristic(self):
-        sum_empty_white = 0
-        sum_full_white = 0
-        sum_full_red = 0
-        sum_empty_red = 0
-        for x in range(0,8):
-            for y in range(0,13):
-                    if self.board[x][y] is not None:
-                        x = str(x)
-                        y = str(y)
-                        coord_value = self.HEURISTIC_BOARD_CONVERSION[x+y]
-                        if Tile.Color.value == 'W' and Tile.DotState.value == 'E':
-                            # "sum the coordinates of each white empty dot O "
-                            sum_empty_white += coord_value
-                        elif Tile.Color.value == 'W' and Tile.DotState.value == 'F':
-                            # "sum the coordinates of each white full dot  • "
-                            sum_full_white += coord_value
-                        elif Tile.Color.value == 'R' and Tile.DotState.value == 'F':
-                            # " sum the coordinates of each red full dot • "
-                            sum_full_red += coord_value
-                        elif Tile.Color.value == 'R' and Tile.DotState.value == 'E':
-                            # " sum the coordinates of each red empty dot O "
-                            sum_empty_red += coord_value
-        evaluation_func = sum_empty_white + 3 * sum_full_white - 2 * sum_empty_red - 1.5 * sum_full_red
-        return evaluation_func
-
     def __init__(self, max_nbr_cards):
         # NOTE: Initially, the board is empty (no cards on it), so no tiles are on it either.
         # We illustrate a location on the board with no tile/card as a string (blank spaces).
@@ -179,6 +182,44 @@ class Board:
         # methods we provide) when we reach that quota.
         self.maxNbrCards = max_nbr_cards
         self.recycled_card = 23
+
+    # Looping through the board
+    # For all coordinates with a card placed on it, we determine if it's red/white and empty/filled
+    # The coordinate is also used to find the positions 'weight' using the dict above
+    # Based on the formula, the evaluation function is calculated
+    def heuristic(self):
+        sum_empty_white = 0
+        sum_full_white = 0
+        sum_full_red = 0
+        sum_empty_red = 0
+        for x in range(0,11):
+            for y in range(0,7):
+                if self.board[x][y] is Tile:
+                    coord_value = self.heuristic_board_conversion[str(x) + str(y)]
+                    if self.board[x][y].Color == Tile.Color.white and self.board[x][y].DotState == Tile.DotState.empty:
+                        # "sum the coordinates of each white empty dot O "
+                        sum_empty_white += coord_value
+                    elif self.board[x][y].Color == Tile.Color.white and self.board[x][y].DotState == Tile.DotState.filled:
+                        # "sum the coordinates of each white full dot  • "
+                        sum_full_white += coord_value
+                    elif self.board[x][y].Color == Tile.Color.red and self.board[x][y].DotState == Tile.DotState.filled:
+                        # " sum the coordinates of each red full dot • "
+                        sum_full_red += coord_value
+                    elif self.board[x][y].Color == Tile.Color.red and self.board[x][y].DotState == Tile.DotState.empty:
+                        # " sum the coordinates of each red empty dot O "
+                        sum_empty_red += coord_value
+        evaluation_func = sum_empty_white + 3 * sum_full_white - 2 * sum_empty_red - 1.5 * sum_full_red
+        return evaluation_func
+
+    def ai_move(self):
+        aiMove = findMinimax(self)
+        self.insert_card_direct(aiMove[0], aiMove[1])
+
+    def removeCard(self, new_card, position):
+
+        position_first_tile, position_second_tile = new_card.get_tile_positions(position)
+        self.board[position_first_tile[1]][position_first_tile[0]] = ' ' * 4
+        self.board[position_second_tile[1]][position_second_tile[0]] = ' ' * 4
 
     def convert_coordinate(self, letter_num_coordinate):
         """ Convert a coordinate in the form [A-Z] [0-9] (eg. A 2) (given as a tuple)
@@ -200,6 +241,17 @@ class Board:
         for letter, number in self.CONVERSION_LETTER_TO_NUMBER.items():
             if number == searched_number:
                 return letter
+
+    def get_horizontal_rotation_codes(self):
+        # Vertical orientation codes are odd integers
+        return (rotationCode for rotationCode in range(1, Card.NBR_ROTATION_CODES + 1) if rotationCode % 2 == 1)
+
+    def get_vertical_rotation_codes(self):
+        # Vertical orientation codes are even integers
+        return (rotationCode for rotationCode in range(1, Card.NBR_ROTATION_CODES + 1) if rotationCode % 2 == 0)
+
+    def get_rotation_codes(self):
+        return (rotationCode for rotationCode in range(1, Card.NBR_ROTATION_CODES + 1))
 
     def ask_for_input(self, player):
         inserted_tiles_pos = None
@@ -232,7 +284,7 @@ class Board:
 
     def swap_card(self, args):
         # Check if you should recycle on this turn
-        if self.nbrCards < self.maxNbrCards:
+        if not self.isInRecyclingPhase():
             print("Error: Cannot do a recycling move until " + self.maxNbrCards + " cards are on the board.\n" \
                                                                                   "Please do a normal move instead.")
             return None
@@ -299,6 +351,7 @@ class Board:
 
         # Check if the card has the same rotation code and a different location, to be a legal recycle move
         if not(card_1st_tile.rotationCode == input_rot_code and position_new_card[0] == min(position_card_1st_tile[0], position_card_2nd_tile[0]) and position_new_card[1] == min(position_card_1st_tile[1], position_card_2nd_tile[1])):
+
             self.board[position_card_1st_tile[1]][position_card_1st_tile[0]] = ' ' * 4
             self.board[position_card_2nd_tile[1]][position_card_2nd_tile[0]] = ' ' * 4
             new_card = Card(input_rot_code, card_1st_tile.cardOwner)
@@ -362,6 +415,11 @@ class Board:
         Card.id_count += 1
 
         return [position_new_card, position_second_tile]
+
+    def insert_card_direct(self, new_card, position):
+        position_first_tile, position_second_tile = new_card.get_tile_positions(position)
+        self.board[position_first_tile[1]][position_first_tile[0]] = new_card.activeSide.tile1
+        self.board[position_second_tile[1]][position_second_tile[0]] = new_card.activeSide.tile2
 
     def check_four_consecutive(self, tile_pos, offset, type_item):
         """ Check whether or not there are 4 consecutive tiles with the same state of the type item
@@ -437,15 +495,63 @@ class Board:
 
     def check_win_conditions(self, insert_tiles_pos, type_item):
         offsets = [(0, 1), (0, -1), (1, 0), (-1, 0), (1, 1), (-1, -1), (1, -1), (-1, 1)]
+        # todo: Optimize this so that directions where no four consecutive tiles could possible be aligned are ignored.
         for tilePos in insert_tiles_pos:
             for offset in offsets:
                 if self.check_four_consecutive(tilePos, offset, type_item):
                     return True
         return False
 
+    def generate_valid_next_moves(self):
+        valid_moves = list()
+        # The valid moves are generated differently depending on the current phase (standard moves or recycling moves)
+        if self.isInRecyclingPhase():
+            raise Exception("not implemented")
+        else:
+            # For all rows on the board, search upwards through the corresponding column
+            # in order to find the first empty tile.
+            for i in range(0, self.DIMENSIONS_X_Y[0]):
+                for j in range(0, self.DIMENSIONS_X_Y[1]):
+                    # If we found the first empty tile, try to insert a card from this position.
+                    if not isinstance(self.board[j][i], Tile):
+                        potential_valid_moves = None
+                        # If we are checking the very last column, then there is no need to check the "horizontal" moves
+                        #  => they are invalid for sure.
+                        if i == self.DIMENSIONS_X_Y[0] - 1:
+                            potential_valid_moves = self.generate_valid_regular_moves_from_pos_and_rot_codes((i, j), self.get_vertical_rotation_codes())
+                        # Similar logic applies to the very top row, the "vertical" moves
+                        # are guaranteed to be invalid.
+                        elif j == self.DIMENSIONS_X_Y[1] - 1:
+                            potential_valid_moves = self.generate_valid_regular_moves_from_pos_and_rot_codes((i, j), self.get_horizontal_rotation_codes())
+                        else:
+                            potential_valid_moves = self.generate_valid_regular_moves_from_pos_and_rot_codes((i, j), self.get_rotation_codes())
+                        if potential_valid_moves is not None:
+                            valid_moves.extend(potential_valid_moves)
+                        # We should NOT search the tiles upwards from the first empty tile, since they are guaranteed to be invalid.
+                        break
+        return valid_moves
 
+    #@toggle_printing_off_decorator
+    def generate_valid_regular_moves_from_pos_and_rot_codes(self, position, rotation_codes):
+        regular_moves = []
+        for rotation_code in rotation_codes:
+            potential_regular_move = self.try_insert_card_in_new_board_AI(position, rotation_code)
+            if potential_regular_move is not None:
+                regular_moves.append(potential_regular_move)
+        return regular_moves
 
+    def try_insert_card_in_new_board_AI(self, position, rotation_code):
+        new_card = Card(rotation_code)
+        position_first_tile, position_second_tile = new_card.get_tile_positions(position)
+        if self.card_location_is_valid_spot(position_first_tile, position_second_tile, new_card):
+            return new_card, position
+        else:
+            return None
 
+    def isInRecyclingPhase(self):
+        # Returns whether or not the players have entered the recycling phase, meaning that only recycling moves
+        # will be allowed from now on. This happens when all cards are placed on the board.
+        return self.nbrCards >= self.maxNbrCards
 
     def __str__(self):
         output_str = ''
@@ -480,10 +586,25 @@ class ColorPlayer:
         self.typeItem = Tile.Color
 
 
+tracing = None
 def game_loop():
     b = Board(NBR_CARDS)
     p1 = DotPlayer()
     p2 = ColorPlayer()
+
+    # trace_input = input("Would you like to produce a trace of the minimax? Enter Y for yes or N for no \n" )
+    # while True:
+    #     if len(trace_input) == 0:
+    #         trace_input = input("Please enter Y or N \n")
+    #     elif trace_input == 'Y' or trace_input == 'y':
+    #         # call trace method
+    #         break
+    #     elif trace_input == 'N' or trace_input == 'n':
+    #         break
+    #     else:
+    #         trace_input = input("Invalid entry. Please try again \n")
+
+
     current_player = None
     other_player = None
     ai_player = None
@@ -572,8 +693,8 @@ def game_loop():
 
     while True:
         if ai_player != None and current_player == ai_player:
-            # AI call
-            print("AI METHOD HERE")
+            print(b.generate_valid_next_moves())
+            b.ai_move()
         else:
             inserted_tiles_pos = b.ask_for_input(current_player.name)
         print(b)
