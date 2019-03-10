@@ -1,5 +1,6 @@
 from enum import Enum
 from exceptions import *
+from trace import *
 from printingDisabler import *
 import copy
 
@@ -27,6 +28,38 @@ def all_values_positive(col1, row1, col2, row2):
     if col1 > Board.DIMENSIONS_X_Y[0] - 1 or row1 > Board.DIMENSIONS_X_Y[1] - 1 or col2 > Board.DIMENSIONS_X_Y[0] - 1 or row2 > Board.DIMENSIONS_X_Y[1] - 1:
         return False
     return True
+
+
+def findMinimax(board, tracing):
+    level2Array = []
+    level3Nodes = 0
+    for move in board.generate_valid_next_moves():
+        board.insert_card_direct(move[0], move[1])
+        level2Heuristic = 1000000
+        for level3move in board.generate_valid_next_moves():
+            board.insert_card_direct(level3move[0], level3move[1])
+            level3Heuristic = board.heuristic()
+            if level3Heuristic < level2Heuristic:
+                level2Heuristic = level3Heuristic
+            board.removeCard(level3move[0], level3move[1])
+            level3Nodes += 1
+        if level2Heuristic == 1000000:
+            level2Heuristic = board.heuristic()
+        level2Array.append([level2Heuristic, move])
+        board.removeCard(move[0], move[1])
+
+    chosenHeuristic = level2Array[0][0]
+    moveChosen = level2Array[0][1]
+    for level2 in level2Array:
+        if (level2[0] > chosenHeuristic):
+            chosenHeuristic = level2[0]
+            moveChosen = level2[1]
+
+    if tracing != None:
+        tracing.addLevel3(level3Nodes, chosenHeuristic)
+        tracing.addLevel2(level2Array)
+
+    return moveChosen
 
 
 class Tile:
@@ -167,26 +200,35 @@ class Board:
         sum_full_white = 0
         sum_full_red = 0
         sum_empty_red = 0
-        for x in range(0,8):
-            for y in range(0,13):
-                    if self.board[x][y] is not None:
-                        x = str(x)
-                        y = str(y)
-                        coord_value = self.HEURISTIC_BOARD_CONVERSION[x+y]
-                        if Tile.Color.value == 'W' and Tile.DotState.value == 'E':
-                            # "sum the coordinates of each white empty dot O "
-                            sum_empty_white += coord_value
-                        elif Tile.Color.value == 'W' and Tile.DotState.value == 'F':
-                            # "sum the coordinates of each white full dot  • "
-                            sum_full_white += coord_value
-                        elif Tile.Color.value == 'R' and Tile.DotState.value == 'F':
-                            # " sum the coordinates of each red full dot • "
-                            sum_full_red += coord_value
-                        elif Tile.Color.value == 'R' and Tile.DotState.value == 'E':
-                            # " sum the coordinates of each red empty dot O "
-                            sum_empty_red += coord_value
+        for x in range(0,11):
+            for y in range(0,7):
+                if isinstance(self.board[x][y],Tile):
+                    coord_value = self.heuristic_board_conversion[str(x) + str(y)]
+                    if self.board[x][y].color == Tile.Color.white and self.board[x][y].dotState == Tile.DotState.empty:
+                        # "sum the coordinates of each white empty dot O "
+                        sum_empty_white += coord_value
+                    elif self.board[x][y].color == Tile.Color.white and self.board[x][y].dotState == Tile.DotState.filled:
+                        # "sum the coordinates of each white full dot  • "
+                        sum_full_white += coord_value
+                    elif self.board[x][y].color == Tile.Color.red and self.board[x][y].dotState == Tile.DotState.filled:
+                        # " sum the coordinates of each red full dot • "
+                        sum_full_red += coord_value
+                    elif self.board[x][y].color == Tile.Color.red and self.board[x][y].dotState == Tile.DotState.empty:
+                        # " sum the coordinates of each red empty dot O "
+                        sum_empty_red += coord_value
         evaluation_func = sum_empty_white + 3 * sum_full_white - 2 * sum_empty_red - 1.5 * sum_full_red
         return evaluation_func
+
+    def ai_move(self, tracing):
+        aiMove = findMinimax(self, tracing)
+        self.insert_card_direct(aiMove[0], aiMove[1])
+
+
+    def removeCard(self, new_card, position):
+
+        position_first_tile, position_second_tile = new_card.get_tile_positions(position)
+        self.board[position_first_tile[1]][position_first_tile[0]] = ' ' * 4
+        self.board[position_second_tile[1]][position_second_tile[0]] = ' ' * 4
 
     def convert_coordinate(self, letter_num_coordinate):
         """ Convert a coordinate in the form [A-Z] [0-9] (eg. A 2) (given as a tuple)
@@ -335,7 +377,8 @@ class Board:
             return False
 
         # Check if the card has the same rotation code and a different location, to be a legal recycle move
-        if not(card_1st_tile.rotationCode == input_rot_code and position_new_card[0] == min(position_card_1st_tile[0], position_card_2nd_tile[0]) and position_new_card[1] == min(position_card_1st_tile[1], position_card_2nd_tile[1])):
+        if not(card_1st_tile.rotationCode == input_rot_code and position_new_card[0] == min(position_card_1st_tile[0], position_card_2nd_tile[0])
+               and position_new_card[1] == min(position_card_1st_tile[1], position_card_2nd_tile[1])):
             self.board[position_card_1st_tile[1]][position_card_1st_tile[0]] = ' ' * 4
             self.board[position_card_2nd_tile[1]][position_card_2nd_tile[0]] = ' ' * 4
             new_card = Card(input_rot_code, card_1st_tile.cardOwner)
@@ -395,6 +438,31 @@ class Board:
         Card.id_count += 1
 
         return [position_new_card, position_second_tile]
+
+    def insert_card_direct(self, new_card, position):
+        position_first_tile, position_second_tile = new_card.get_tile_positions(position)
+        self.board[position_first_tile[1]][position_first_tile[0]] = new_card.activeSide.tile1
+        self.board[position_second_tile[1]][position_second_tile[0]] = new_card.activeSide.tile2
+
+    def check_four_consecutive(self, tile_pos, offset, type_item):
+        """ Check whether or not there are 4 consecutive tiles with the same state of the type item
+            from tilePos in the direction of the offset (offset can be seen as a normalized direction vector).
+        """
+        nbr_consecutives = 1
+        current_pos = tile_pos
+        while nbr_consecutives < 4:
+            next_pos = add_tuples(current_pos, offset)
+            if not all_values_positive(next_pos[0], next_pos[1], current_pos[0], current_pos[1]):
+                return False
+            if isinstance(self.board[tile_pos[1]][tile_pos[0]], Tile) \
+                and isinstance(self.board[next_pos[1]][next_pos[0]], Tile) \
+                and self.board[tile_pos[1]][tile_pos[0]].get_item_key(type_item) == \
+                    self.board[next_pos[1]][next_pos[0]].get_item_key(type_item):
+                    nbr_consecutives += 1
+            else:
+                break
+            current_pos = next_pos
+        return nbr_consecutives >= 4
 
     def card_location_is_valid_spot(self, tile_1_location, tile_2_location, new_card):
         """ Return whether or not the given location in the 2d-dimensional array is valid.
@@ -456,6 +524,7 @@ class Board:
                     return True
         return False
 
+    @toggle_printing_off_decorator
     def check_four_consecutive(self, tile_pos, offset, type_item):
         """ Check whether or not there are 4 consecutive tiles with the same state of the type item
             from tilePos in the direction of the offset (offset can be seen as a normalized direction vector).
@@ -490,7 +559,7 @@ class Board:
             current_pos = next_pos
         return nbr_consecutives
 
-    #@toggle_printing_off_decorator
+    @toggle_printing_off_decorator
     def generate_valid_next_moves(self):
         # The valid moves are generated differently depending on the current phase (standard moves or recycling moves)
         if self.isInRecyclingPhase():
@@ -581,7 +650,7 @@ class Board:
         return valid_regular_moves
 
     def generate_valid_regular_moves_from_pos_and_rot_codes(self, position, rotation_codes):
-        regular_moves = list()
+        regular_moves = []
         for rotation_code in rotation_codes:
             potential_regular_move = self.try_insert_card_in_new_board_AI(position, rotation_code)
             if potential_regular_move is not None:
@@ -589,14 +658,10 @@ class Board:
         return regular_moves
 
     def try_insert_card_in_new_board_AI(self, position, rotation_code):
-        # Make a new board that has the same information as the current board
-        b = copy.deepcopy(self)
         new_card = Card(rotation_code)
         position_first_tile, position_second_tile = new_card.get_tile_positions(position)
-        if b.card_location_is_valid_spot(position_first_tile, position_second_tile, new_card):
-            b.board[position_first_tile[1]][position_first_tile[0]] = new_card.activeSide.tile1
-            b.board[position_second_tile[1]][position_second_tile[0]] = new_card.activeSide.tile2
-            return b
+        if self.card_location_is_valid_spot(position_first_tile, position_second_tile, new_card):
+            return new_card, position
         else:
             return None
 
@@ -654,24 +719,100 @@ def game_loop():
     #     else:
     #         trace_input = input("Invalid entry. Please try again \n")
 
-    # Users decide which player they'd like to be first
-    user_input = input("Enter C if you'd like to play color, or D if you'd like to play dots \n")
+
     current_player = None
     other_player = None
+    ai_player = None
+
+    ai_input = input("Would you like to play against the AI? Enter Y for yes or N for no \n")
     while True:
-        if len(user_input) == 0:
+        if len(ai_input) == 0:
+            ai_input = input("Please enter Y or N \n")
+        elif ai_input == 'Y' or ai_input == 'y':
+            ai_mode = True
+            break
+        elif ai_input == 'N' or ai_input == 'n':
+            ai_mode = False
+            break
+        else:
+            ai_input = input("Invalid entry. Please try again \n")
+
+    if ai_mode:
+        tracing = None
+        trace_input = input("Would you like to produce a trace of the minimax? Enter Y for yes or N for no \n" )
+        while True:
+            if len(trace_input) == 0:
+                trace_input = input("Please enter Y or N \n")
+            elif trace_input == 'Y' or trace_input == 'y':
+                tracing = TraceFile()
+                break
+            elif trace_input == 'N' or trace_input == 'n':
+                break
+            else:
+                trace_input = input("Invalid entry. Please try again \n")
+
+        ai_first = None
+        player_input = input("Would you like the AI to play first? Enter Y for yes or N for no \n")
+        while True:
+            if len(player_input) == 0:
+                player_input = input("Please enter Y or N \n")
+            elif player_input == 'Y' or player_input == 'y':
+                ai_first = True
+                break
+            elif player_input == 'N' or player_input == 'n':
+                ai_first = False
+                break
+            else:
+                player_input = input("Invalid entry. Please try again \n")
+
+        # Users decide which player they'd like to be
+        user_input = input("Enter C if you'd like to play color, or D if you'd like to play dots \n")
+        while True:
+            if len(user_input) == 0:
                 user_input = input("Please enter C or D \n")
-        elif user_input == 'C' or user_input == 'c':
+            elif user_input == 'C' or user_input == 'c':
                 current_player = p2
                 other_player = p1
+                if ai_first:
+                    ai_player = p2
+                else:
+                    ai_player = p1
                 break
-        elif user_input == 'D' or user_input == 'd':
+            elif user_input == 'D' or user_input == 'd':
                 current_player = p1
                 other_player = p2
+                if ai_first:
+                    ai_player = p1
+                else:
+                    ai_player = p2
                 break
-        else:
-            user_input = input("Invalid entry. Please try again \n")
+            else:
+                user_input = input("Invalid entry. Please try again \n")
 
+    else:
+        # Users decide which player they'd like to be
+        user_input = input("Enter C if you'd like to play color, or D if you'd like to play dots \n")
+        while True:
+            if len(user_input) == 0:
+                    user_input = input("Please enter C or D \n")
+            elif user_input == 'C' or user_input == 'c':
+                    current_player = p2
+                    other_player = p1
+                    break
+            elif user_input == 'D' or user_input == 'd':
+                    current_player = p1
+                    other_player = p2
+                    break
+            else:
+                user_input = input("Invalid entry. Please try again \n")
+
+
+    while True:
+        if ai_player != None and current_player == ai_player:
+            print(b.generate_valid_next_moves())
+            b.ai_move(tracing)
+        else:
+            inserted_tiles_pos = b.ask_for_input(current_player.name)
     nbr_moves = 0
     while nbr_moves < MAX_NBR_MOVES:
         inserted_tiles_pos = b.ask_for_input(current_player.name)
