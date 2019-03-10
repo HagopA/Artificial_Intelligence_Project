@@ -286,7 +286,7 @@ class Board:
     def swap_card(self, args):
         # Check if you should recycle on this turn
         if not self.isInRecyclingPhase():
-            print("Error: Cannot do a recycling move until " + self.maxNbrCards + " cards are on the board.\n" \
+            print("Error: Cannot do a recycling move until " + str(self.maxNbrCards) + " cards are on the board.\n" \
                                                                                   "Please do a normal move instead.")
             return None
 
@@ -384,7 +384,7 @@ class Board:
         """
         # Ensure that an exception is thrown when we try to exceed the max number of cards to indicate failure
         if self.nbrCards >= self.maxNbrCards:
-            print("Error: Cannot insert more than " + self.maxNbrCards + " cards on the board.\nPlease do a recycling "
+            print("Error: Cannot insert more than " + str(self.maxNbrCards) + " cards on the board.\nPlease do a recycling "
                                                                          "move instead.")
             return None
         try:
