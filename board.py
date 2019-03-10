@@ -1,5 +1,6 @@
 from enum import Enum
 from exceptions import *
+from trace import *
 
 # The specifications tell us that there are 24 cards available to be placed on the board (shared between both players).
 NBR_CARDS = 24
@@ -483,40 +484,98 @@ def game_loop():
     b = Board(NBR_CARDS)
     p1 = DotPlayer()
     p2 = ColorPlayer()
-
-    # trace_input = input("Would you like to produce a trace of the minimax? Enter Y for yes or N for no \n" )
-    # while True:
-    #     if len(trace_input) == 0:
-    #         trace_input = input("Please enter Y or N \n")
-    #     elif trace_input == 'Y' or trace_input == 'y':
-    #         # call trace method
-    #         break
-    #     elif trace_input == 'N' or trace_input == 'n':
-    #         break
-    #     else:
-    #         trace_input = input("Invalid entry. Please try again \n")
-
-    # Users decide which player they'd like to be
-    user_input = input("Enter C if you'd like to play color, or D if you'd like to play dots \n")
     current_player = None
     other_player = None
+    ai_player = None
+
+    ai_input = input("Would you like to play against the AI? Enter Y for yes or N for no \n")
     while True:
-        if len(user_input) == 0:
+        if len(ai_input) == 0:
+            ai_input = input("Please enter Y or N \n")
+        elif ai_input == 'Y' or ai_input == 'y':
+            ai_mode = True
+            break
+        elif ai_input == 'N' or ai_input == 'n':
+            ai_mode = False
+            break
+        else:
+            ai_input = input("Invalid entry. Please try again \n")
+
+    if ai_mode:
+        trace_input = input("Would you like to produce a trace of the minimax? Enter Y for yes or N for no \n" )
+        while True:
+            if len(trace_input) == 0:
+                trace_input = input("Please enter Y or N \n")
+            elif trace_input == 'Y' or trace_input == 'y':
+                tracing = TraceFile()
+                break
+            elif trace_input == 'N' or trace_input == 'n':
+                break
+            else:
+                trace_input = input("Invalid entry. Please try again \n")
+
+        ai_first = None
+        player_input = input("Would you like the AI to play first? Enter Y for yes or N for no \n")
+        while True:
+            if len(player_input) == 0:
+                player_input = input("Please enter Y or N \n")
+            elif player_input == 'Y' or player_input == 'y':
+                ai_first = True
+                break
+            elif player_input == 'N' or player_input == 'n':
+                ai_first = False
+                break
+            else:
+                player_input = input("Invalid entry. Please try again \n")
+
+        # Users decide which player they'd like to be
+        user_input = input("Enter C if you'd like to play color, or D if you'd like to play dots \n")
+        while True:
+            if len(user_input) == 0:
                 user_input = input("Please enter C or D \n")
-        elif user_input == 'C' or user_input == 'c':
+            elif user_input == 'C' or user_input == 'c':
                 current_player = p2
                 other_player = p1
+                if ai_first:
+                    ai_player = p2
+                else:
+                    ai_player = p1
                 break
-        elif user_input == 'D' or user_input == 'd':
+            elif user_input == 'D' or user_input == 'd':
                 current_player = p1
                 other_player = p2
+                if ai_first:
+                    ai_player = p1
+                else:
+                    ai_player = p2
                 break
-        else:
-            user_input = input("Invalid entry. Please try again \n")
+            else:
+                user_input = input("Invalid entry. Please try again \n")
+
+    else:
+        # Users decide which player they'd like to be
+        user_input = input("Enter C if you'd like to play color, or D if you'd like to play dots \n")
+        while True:
+            if len(user_input) == 0:
+                    user_input = input("Please enter C or D \n")
+            elif user_input == 'C' or user_input == 'c':
+                    current_player = p2
+                    other_player = p1
+                    break
+            elif user_input == 'D' or user_input == 'd':
+                    current_player = p1
+                    other_player = p2
+                    break
+            else:
+                user_input = input("Invalid entry. Please try again \n")
 
 
     while True:
-        inserted_tiles_pos = b.ask_for_input(current_player.name)
+        if ai_player != None and current_player == ai_player:
+            # AI call
+            print("AI METHOD HERE")
+        else:
+            inserted_tiles_pos = b.ask_for_input(current_player.name)
         print(b)
         if b.nbrCards >= 4:
             # Even if the other player wins at the same time as the current player, the current player has
