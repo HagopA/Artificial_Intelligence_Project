@@ -53,6 +53,7 @@ class Tile:
         return self.color.value + self.dotState.value + "%-2d" % self.cardOwner
 
 
+
 class Side:
 
     def __init__(self, tile1, tile2):
@@ -128,6 +129,54 @@ class Board:
     CONVERSION_LETTER_TO_NUMBER = {'A': 0, 'B': 1, 'C': 2, 'D': 3, 'E': 4, 'F': 5, 'G': 6, 'H': 7, 'I': 8, 'J': 9,
                                    'K': 10, 'L': 11, 'M': 12, 'N': 13, 'O': 14, 'P': 15, 'Q': 16, 'R': 17, 'S': 18,
                                    'T': 19, 'U': 20, 'V': 21, 'W': 22, 'X': 23, 'Y': 24, 'Z': 25}
+
+    # Conversion board to be used for the application of the naive heuristic
+    # Keys are represented by coordinate pairs.
+    # Example: '24' represents coordinate (2,4). '512' represents coordinate (5,12).
+    # The associated value is the numeric weight assigned to that coordinate (given by the prof)
+    HEURISTIC_BOARD_CONVERSION = {
+        '011': 111, '111': 112, '211': 113, '311': 114, '411': 115, '511': 116, '611': 117, '711': 118,
+        '010': 101, '110': 102, '210': 103, '310': 104, '410': 105, '510': 106, '610': 107, '710': 108,
+        '09': 91, '19': 92, '29': 93, '39': 94, '49': 95, '59': 96, '69': 97, '79': 98,
+        '08': 81, '18': 82, '28': 83, '38': 84, '48': 85, '58': 86, '68': 87, '78': 88,
+        '07': 71, '17': 72, '27': 73, '37': 74, '47': 75, '57': 76, '67': 77, '77': 78,
+        '06': 61, '16': 62, '26': 63, '36': 64, '46': 65, '56': 66, '66': 67, '76': 68,
+        '05': 51, '15': 52, '25': 53, '35': 54, '45': 55, '55': 56, '65': 57, '75': 58,
+        '04': 41, '14': 42, '24': 43, '34': 44, '44': 45, '54': 46, '64': 47, '74': 48,
+        '03': 31, '13': 32, '23': 33, '33': 34, '43': 35, '53': 36, '63': 37, '73': 38,
+        '02': 21, '12': 22, '22': 23, '32': 24, '42': 25, '52': 26, '62': 27, '72': 28,
+        '01': 11, '11': 12, '21': 13, '31': 14, '41': 15, '51': 16, '61': 17, '71': 18,
+        '00': 1, '10': 2, '20': 3, '30': 4, '40': 5, '50': 6, '60': 7, '70': 8, }
+
+    # Looping through the board
+    # For all coordinates with a card placed on it, we determine if it's red/white and empty/filled
+    # The coordinate is also used to find the positions 'weight' using the dict above
+    # Based on the formula, the evaluation function is calculated
+    def heuristic(self):
+        sum_empty_white = 0
+        sum_full_white = 0
+        sum_full_red = 0
+        sum_empty_red = 0
+        for x in range(0,8):
+            for y in range(0,13):
+                    if self.board[x][y] is not None:
+                        x = str(x)
+                        y = str(y)
+                        coord_value = self.HEURISTIC_BOARD_CONVERSION[x+y]
+                        if Tile.Color.value == 'W' and Tile.DotState.value == 'E':
+                            # "sum the coordinates of each white empty dot O "
+                            sum_empty_white += coord_value
+                        elif Tile.Color.value == 'W' and Tile.DotState.value == 'F':
+                            # "sum the coordinates of each white full dot  • "
+                            sum_full_white += coord_value
+                        elif Tile.Color.value == 'R' and Tile.DotState.value == 'F':
+                            # " sum the coordinates of each red full dot • "
+                            sum_full_red += coord_value
+                        elif Tile.Color.value == 'R' and Tile.DotState.value == 'E':
+                            # " sum the coordinates of each red empty dot O "
+                            sum_empty_red += coord_value
+        evaluation_func = sum_empty_white + 3 * sum_full_white - 2 * sum_empty_red - 1.5 * sum_full_red
+        return evaluation_func
 
     def __init__(self, max_nbr_cards):
         # NOTE: Initially, the board is empty (no cards on it), so no tiles are on it either.
@@ -423,6 +472,10 @@ class Board:
                     return True
         return False
 
+
+
+
+
     def __str__(self):
         output_str = ''
         row_index = 0
@@ -461,6 +514,18 @@ def game_loop():
     p1 = DotPlayer()
     p2 = ColorPlayer()
 
+    # trace_input = input("Would you like to produce a trace of the minimax? Enter Y for yes or N for no \n" )
+    # while True:
+    #     if len(trace_input) == 0:
+    #         trace_input = input("Please enter Y or N \n")
+    #     elif trace_input == 'Y' or trace_input == 'y':
+    #         # call trace method
+    #         break
+    #     elif trace_input == 'N' or trace_input == 'n':
+    #         break
+    #     else:
+    #         trace_input = input("Invalid entry. Please try again \n")
+
     # Users decide which player they'd like to be
     user_input = input("Enter C if you'd like to play color, or D if you'd like to play dots \n")
     current_player = None
@@ -478,6 +543,7 @@ def game_loop():
                 break
         else:
             user_input = input("Invalid entry. Please try again \n")
+
 
     while True:
         inserted_tiles_pos = b.ask_for_input(current_player.name)
