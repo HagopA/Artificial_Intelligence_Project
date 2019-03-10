@@ -132,7 +132,7 @@ class Board:
 
     # Conversion board to be used for the application of the naive heuristic
     # Keys are represented by coordinate pairs.
-    # Example: '24' represents coordinate (2,4). '512' represents coordinate (5,12).
+    # Example: '24' represents coordinate (B,4). '512' represents coordinate (E,12).
     # The associated value is the numeric weight assigned to that coordinate (given by the prof)
     heuristic_board_conversion = dict()
     for i in range(0, DIMENSIONS_X_Y[1]):
@@ -532,6 +532,5 @@ def game_loop():
         # We switch to the other player
         other_player = current_player
         current_player = p1 if current_player == p2 else p2
-
 
 game_loop()
