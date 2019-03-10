@@ -92,7 +92,7 @@ class Tile:
 
     def __str__(self):
         # Note: We assume there is no more than 99 different ids
-        return self.color.value + self.dotState.value + "%-2d" % self.cardOwner
+        return self.color.value + self.dotState.value + "%-2d" % self.cardOwner.id
 
 
 
@@ -124,10 +124,10 @@ class Card:
             self.id = Card.id_count
         else:
             self.id = id
-        self.side1 = Side(Tile(Tile.Color.red, Tile.DotState.filled, self.id, rotation_code),
-                          Tile(Tile.Color.white, Tile.DotState.empty, self.id, rotation_code))
-        self.side2 = Side(Tile(Tile.Color.red, Tile.DotState.empty, self.id, rotation_code),
-                          Tile(Tile.Color.white, Tile.DotState.filled, self.id, rotation_code))
+        self.side1 = Side(Tile(Tile.Color.red, Tile.DotState.filled, self, rotation_code),
+                          Tile(Tile.Color.white, Tile.DotState.empty, self, rotation_code))
+        self.side2 = Side(Tile(Tile.Color.red, Tile.DotState.empty, self, rotation_code),
+                          Tile(Tile.Color.white, Tile.DotState.filled, self, rotation_code))
         self.rotationCode = rotation_code
         if self.rotationCode <= self.NBR_ROTATION_CODES / 2:
             self.activeSide = self.side1
@@ -551,19 +551,18 @@ class Board:
             current_pos = next_pos
         return nbr_consecutives
 
-    #@toggle_printing_off_decorator
     def generate_valid_next_moves(self):
-        with TogglePrintingOffGuard():
-            # The valid moves are generated differently depending on the current phase (standard moves or recycling moves)
-            if self.isInRecyclingPhase():
-                return self.generate_valid_recycling_moves()
-            else:
-                print ("is in not recycling")
-                return self.generate_valid_regular_moves()
+        #with TogglePrintingOffGuard():
+        # The valid moves are generated differently depending on the current phase (standard moves or recycling moves)
+        if self.isInRecyclingPhase():
+            return self.generate_valid_recycling_moves()
+        else:
+            print ("is in not recycling")
+            return self.generate_valid_regular_moves()
 
     def generate_valid_recycling_moves(self):
         cardOwnerPreviousTile = None
-        cardsThatCanBeRecycledAndTheirLocations = dict()
+        cards_recycled_and_locations = dict()
         valid_tile_locations = list()
         # For all rows on the board, search upwards through the corresponding column
         # in order to find the highest nonempty tile of each column. This is because we can only recycle cards
@@ -573,11 +572,11 @@ class Board:
                 # If we found the highest tile on that column (i.e. the next highest tile is either an empty tile
                 # or the very top of the board), then generate valid recycling moves that involve swapping it out.
                 if isinstance(self.board[j][i], Tile) and \
-                        (not isinstance(self.board[j + 1][i], Tile) or ((j+1) == self.DIMENSIONS_X_Y[1])):
+                        (((j+1) == self.DIMENSIONS_X_Y[1]) or not isinstance(self.board[j + 1][i], Tile)):
                     cardToRecycle = self.board[j][i].cardOwner
                     # If we already checked the valid moves of that card, we can ignore it.
                     if cardToRecycle != cardOwnerPreviousTile:
-                        cardsThatCanBeRecycledAndTheirLocations[cardToRecycle] = ((i, j), self.find_location_other_tile_of_card(cardToRecycle, (i, j)))
+                        cards_recycled_and_locations[cardToRecycle] = ((i, j), self.find_location_other_tile_of_card(cardToRecycle, (i, j)))
                     cardOwnerPreviousTile = cardToRecycle
                     # If the tile above the current one is not out of bounds, then
                     # we assume that it is a valid tile location, since it is, by definition, the
@@ -589,21 +588,32 @@ class Board:
 
         valid_recycling_moves = list()
         # Then, for each card that can be recycled, generate its valid next moves
-        for card, locations in cardsThatCanBeRecycledAndTheirLocations.items():
+        for card, locations in cards_recycled_and_locations.items():
             potential_valid_recycling_moves = self.generate_valid_recycling_moves_for_card(card, locations, valid_tile_locations)
             if potential_valid_recycling_moves != None:
                 valid_recycling_moves.extend(potential_valid_recycling_moves)
         return valid_recycling_moves # valid_recycling_moves
 
     def find_location_other_tile_of_card(self, card, first_tile_position):
-        if (first_tile_position[0] + 1) < self.DIMENSIONS_X_Y[0] and self.board[first_tile_position[1]][first_tile_position[0] + 1] == card:
+        print (str(card), str(first_tile_position))
+        if (first_tile_position[0] + 1) < self.DIMENSIONS_X_Y[0] \
+                and isinstance(self.board[first_tile_position[1]][first_tile_position[0] + 1], Tile)\
+                and self.board[first_tile_position[1]][first_tile_position[0] + 1].cardOwner == card:
             return (first_tile_position[0]+1, first_tile_position[1])
-        if (first_tile_position[0] - 1) >= 0 and self.board[first_tile_position[1]][first_tile_position[0] - 1] == card:
+        if (first_tile_position[0] - 1) >= 0 \
+                and isinstance(self.board[first_tile_position[1]][first_tile_position[0] - 1], Tile)\
+                and self.board[first_tile_position[1]][first_tile_position[0] - 1].cardOwner == card:
             return (first_tile_position[0] - 1, first_tile_position[1])
-        if (first_tile_position[1] + 1) < self.DIMENSIONS_X_Y[1] and self.board[first_tile_position[1] + 1][first_tile_position[0]] == card:
+        if (first_tile_position[1] + 1) < self.DIMENSIONS_X_Y[1] \
+                and isinstance(self.board[first_tile_position[1] + 1][first_tile_position[0]], Tile) \
+                and self.board[first_tile_position[1] + 1][first_tile_position[0]].cardOwner == card:
             return (first_tile_position[0], first_tile_position[1]+1)
-        if (first_tile_position[1] - 1) >= 0 and self.board[first_tile_position[1] - 1][first_tile_position[0]] == card:
+        if (first_tile_position[1] - 1) >= 0 \
+                and isinstance(self.board[first_tile_position[1] - 1][first_tile_position[0]], Tile)\
+                and self.board[first_tile_position[1] - 1][first_tile_position[0]].cardOwner == card:
             return (first_tile_position[0], first_tile_position[1]-1)
+
+
 
     def generate_valid_recycling_moves_for_card(self, card, cardLocations, valid_tile_locations):
         recycling_moves = list()
@@ -612,6 +622,7 @@ class Board:
                 if self.isValidRecyclingMove(card.activeSide.tile1, card.activeSide.tile2, rotationCode,
                                         newCardLocation, cardLocations[0], cardLocations[1]):
                     recycling_moves.append([card, cardLocations, rotationCode, newCardLocation])
+        print (recycling_moves)
         return recycling_moves
 
 
