@@ -200,20 +200,20 @@ class Board:
         sum_full_white = 0
         sum_full_red = 0
         sum_empty_red = 0
-        for x in range(0,11):
-            for y in range(0,7):
+        for x in range(0, 11):
+            for y in range(0, 7):
                 if isinstance(self.board[x][y],Tile):
-                    coord_value = self.heuristic_board_conversion[str(x) + str(y)]
-                    if self.board[x][y].color == Tile.Color.white and self.board[x][y].dotState == Tile.DotState.empty:
+                    coord_value = self.heuristic_board_conversion[str(y) + str(x)]
+                    if self.board[y][x].color == Tile.Color.white and self.board[y][x].dotState == Tile.DotState.empty:
                         # "sum the coordinates of each white empty dot O "
                         sum_empty_white += coord_value
-                    elif self.board[x][y].color == Tile.Color.white and self.board[x][y].dotState == Tile.DotState.filled:
+                    elif self.board[y][x].color == Tile.Color.white and self.board[y][x].dotState == Tile.DotState.filled:
                         # "sum the coordinates of each white full dot  • "
                         sum_full_white += coord_value
-                    elif self.board[x][y].color == Tile.Color.red and self.board[x][y].dotState == Tile.DotState.filled:
+                    elif self.board[y][x].color == Tile.Color.red and self.board[y][x].dotState == Tile.DotState.filled:
                         # " sum the coordinates of each red full dot • "
                         sum_full_red += coord_value
-                    elif self.board[x][y].color == Tile.Color.red and self.board[x][y].dotState == Tile.DotState.empty:
+                    elif self.board[y][x].color == Tile.Color.red and self.board[y][x].dotState == Tile.DotState.empty:
                         # " sum the coordinates of each red empty dot O "
                         sum_empty_red += coord_value
         evaluation_func = sum_empty_white + 3 * sum_full_white - 2 * sum_empty_red - 1.5 * sum_full_red
@@ -559,13 +559,14 @@ class Board:
             current_pos = next_pos
         return nbr_consecutives
 
-    @toggle_printing_off_decorator
+    #@toggle_printing_off_decorator
     def generate_valid_next_moves(self):
-        # The valid moves are generated differently depending on the current phase (standard moves or recycling moves)
-        if self.isInRecyclingPhase():
-            return self.generate_valid_recycling_moves()
-        else:
-            return self.generate_valid_regular_moves()
+        with TogglePrintingOffGuard():
+            # The valid moves are generated differently depending on the current phase (standard moves or recycling moves)
+            if self.isInRecyclingPhase():
+                return self.generate_valid_recycling_moves()
+            else:
+                return self.generate_valid_regular_moves()
 
     def generate_valid_recycling_moves(self):
         cardOwnerPreviousTile = None
@@ -701,7 +702,6 @@ class ColorPlayer:
         self.name = "player2 - color"
         self.typeItem = Tile.Color
 
-
 def game_loop():
     b = Board(NBR_CARDS)
     p1 = DotPlayer()
@@ -806,16 +806,17 @@ def game_loop():
             else:
                 user_input = input("Invalid entry. Please try again \n")
 
-
-    while True:
+    nbr_moves = 0
+    while nbr_moves < MAX_NBR_MOVES:
+        #for valid_move in b.generate_valid_next_moves():
+        #    print(valid_move)
+        print (current_player)
+        print (ai_player)
+        print(nbr_moves)
         if ai_player != None and current_player == ai_player:
-            print(b.generate_valid_next_moves())
             b.ai_move(tracing)
         else:
             inserted_tiles_pos = b.ask_for_input(current_player.name)
-    nbr_moves = 0
-    while nbr_moves < MAX_NBR_MOVES:
-        inserted_tiles_pos = b.ask_for_input(current_player.name)
         print(b)
        # for valid_move in b.generate_valid_next_moves():
        #     print (valid_move)
@@ -837,5 +838,6 @@ def game_loop():
         nbr_moves += 2
     print (str(MAX_NBR_MOVES) + " have been played. Thus, the game ends in a DRAW!! Congratulations to both players!")
 
+# main
 game_loop()
 
