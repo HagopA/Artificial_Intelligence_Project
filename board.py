@@ -120,12 +120,6 @@ class Card:
     id_count = 0
 
     def __init__(self, rotation_code=1, id=-1):
-        """ #Will probably remove, unless we find out for whatever reason that
-            #the card needs to know who is the player that placed it
-        if len(playerOwner) > 1:
-            print("Note: only the first letter of the player's name will be shown in output.")
-        self.playerOwner = playerOwner
-        """
         if id == -1:
             self.id = Card.id_count
         else:
@@ -177,9 +171,9 @@ class Board:
     # Example: '24' represents coordinate (B,4). '512' represents coordinate (E,12).
     # The associated value is the numeric weight assigned to that coordinate (given by the prof)
     heuristic_board_conversion = dict()
-    for i in range(0, DIMENSIONS_X_Y[1]):
-        for j in range(0, DIMENSIONS_X_Y[0]):
-            heuristic_board_conversion[str(j) + str(i)] = i * 10 + (j + 1)
+    for i in range(0, DIMENSIONS_X_Y[0]):
+        for j in range(0, DIMENSIONS_X_Y[1]):
+            heuristic_board_conversion[(i, j)] = (i + 1) + j * 10
 
     def __init__(self, max_nbr_cards):
         # NOTE: Initially, the board is empty (no cards on it), so no tiles are on it either.
@@ -200,10 +194,10 @@ class Board:
         sum_full_white = 0
         sum_full_red = 0
         sum_empty_red = 0
-        for x in range(0, 11):
-            for y in range(0, 7):
-                if isinstance(self.board[x][y],Tile):
-                    coord_value = self.heuristic_board_conversion[str(y) + str(x)]
+        for x in range(0, self.DIMENSIONS_X_Y[0]):
+            for y in range(0, self.DIMENSIONS_X_Y[1]):
+                if isinstance(self.board[y][x],Tile):
+                    coord_value = self.heuristic_board_conversion[(x, y)]
                     if self.board[y][x].color == Tile.Color.white and self.board[y][x].dotState == Tile.DotState.empty:
                         # "sum the coordinates of each white empty dot O "
                         sum_empty_white += coord_value
@@ -222,6 +216,7 @@ class Board:
     def ai_move(self, tracing):
         aiMove = findMinimax(self, tracing)
         self.insert_card_direct(aiMove[0], aiMove[1])
+        return aiMove
 
 
     def removeCard(self, new_card, position):
@@ -808,18 +803,12 @@ def game_loop():
 
     nbr_moves = 0
     while nbr_moves < MAX_NBR_MOVES:
-        #for valid_move in b.generate_valid_next_moves():
-        #    print(valid_move)
-        print (current_player)
-        print (ai_player)
-        print(nbr_moves)
         if ai_player != None and current_player == ai_player:
-            b.ai_move(tracing)
+            inserted_tiles_pos = b.ai_move(tracing)
         else:
+            #inserted_tiles_pos = b.ai_move(tracing)
             inserted_tiles_pos = b.ask_for_input(current_player.name)
         print(b)
-       # for valid_move in b.generate_valid_next_moves():
-       #     print (valid_move)
         if b.nbrCards >= 4:
             # Even if the other player wins at the same time as the current player, the current player has
             # the priority.
@@ -834,8 +823,7 @@ def game_loop():
         # We switch to the other player
         other_player = current_player
         current_player = p1 if current_player == p2 else p2
-        # It is a 2 player game, so 2 moves per turn
-        nbr_moves += 2
+        nbr_moves += 1
     print (str(MAX_NBR_MOVES) + " have been played. Thus, the game ends in a DRAW!! Congratulations to both players!")
 
 # main
