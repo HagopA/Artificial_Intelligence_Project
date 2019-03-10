@@ -554,9 +554,4 @@ def game_loop():
         other_player = current_player
         current_player = p1 if current_player == p2 else p2
 
-heuristic_board_conversion = dict()
-for i in range(0, Board.DIMENSIONS_X_Y[1]):
-    for j in range(0, Board.DIMENSIONS_X_Y[0]):
-        heuristic_board_conversion[str(j) + str(i)] = i * 10 + (j + 1)
-print(heuristic_board_conversion)
 game_loop()
