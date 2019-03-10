@@ -463,9 +463,15 @@ class Board:
                     return True
         return False
 
-
-
-
+    def generate_valid_moves(self):
+        # For all rows on the board, search upwards through the corresponding column
+        # in order to find the first empty tile.
+        for i in range(0, self.DIMENSIONS_X_Y[0]):
+            for j in range(0, self.DIMENSIONS_X_Y[1]):
+                print (str(i) + " " + str(j))
+                if not isinstance(self.board[j][i], Tile):
+                    print("The first empty tile of row " + self.convert_num_to_letter(i) + " is (" + self.convert_num_to_letter(i) + ", " + str(j+1) + ")")
+                    break
 
     def __str__(self):
         output_str = ''
@@ -539,6 +545,7 @@ def game_loop():
     while True:
         inserted_tiles_pos = b.ask_for_input(current_player.name)
         print(b)
+        b.generate_valid_moves()
         if b.nbrCards >= 4:
             # Even if the other player wins at the same time as the current player, the current player has
             # the priority.
