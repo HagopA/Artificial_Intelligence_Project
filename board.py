@@ -132,7 +132,7 @@ class Board:
 
     # Conversion board to be used for the application of the naive heuristic
     # Keys are represented by coordinate pairs.
-    # Example: '24' represents coordinate (2,4). '512' represents coordinate (5,12).
+    # Example: '24' represents coordinate (B,4). '512' represents coordinate (E,12).
     # The associated value is the numeric weight assigned to that coordinate (given by the prof)
     heuristic_board_conversion = dict()
     for i in range(0, DIMENSIONS_X_Y[1]):
@@ -296,46 +296,25 @@ class Board:
             print(args[5] + " " + args[6] + " does not represent a valid position.")
             return None
 
-        # Check if the card as the same rotation code and a different location, to be a legal recycle move
-        if card_1st_tile.rotationCode == input_rot_code:
-            if position_new_card[0] != min(position_card_1st_tile[0], position_card_2nd_tile[0]) or position_new_card[1] != min(position_card_1st_tile[1], position_card_2nd_tile[1]):
-                self.board[position_card_1st_tile[1]][position_card_1st_tile[0]] = ' ' * 4
-                self.board[position_card_2nd_tile[1]][position_card_2nd_tile[0]] = ' ' * 4
-                new_card = Card(input_rot_code, card_1st_tile.cardOwner)
-                position_first_tile, position_second_tile = new_card.get_tile_positions(position_new_card)
-
-                # The new position is tested for legality. If it is illegal, the cards is placed back
-                if not self.card_location_is_valid_spot(position_first_tile, position_second_tile, new_card):
-                    print("The location where you want to place your recycled card is not valid.")
-                    self.board[position_card_1st_tile[1]][position_card_1st_tile[0]] = card_1st_tile
-                    self.board[position_card_2nd_tile[1]][position_card_2nd_tile[0]] = card2nd_tile
-                    return None
-
-                self.board[position_first_tile[1]][position_first_tile[0]] = new_card.activeSide.tile1
-                self.board[position_second_tile[1]][position_second_tile[0]] = new_card.activeSide.tile2
-
-            else:
-                print("You cannot keep the same rotation and position.")
-                return None
-
-        # If it isn't the same rotation, check if it is the same placement
-        elif position_new_card[0] == min(position_card_1st_tile[0], position_card_2nd_tile[0]) and position_new_card[1] == min(position_card_1st_tile[1], position_card_2nd_tile[1]):
+        # Check if the card has the same rotation code and a different location, to be a legal recycle move
+        if not(card_1st_tile.rotationCode == input_rot_code and position_new_card[0] == min(position_card_1st_tile[0], position_card_2nd_tile[0]) and position_new_card[1] == min(position_card_1st_tile[1], position_card_2nd_tile[1])):
             self.board[position_card_1st_tile[1]][position_card_1st_tile[0]] = ' ' * 4
             self.board[position_card_2nd_tile[1]][position_card_2nd_tile[0]] = ' ' * 4
             new_card = Card(input_rot_code, card_1st_tile.cardOwner)
             position_first_tile, position_second_tile = new_card.get_tile_positions(position_new_card)
 
-            # The new position is tested for legality. If it is illegal, the cards is placed back
+            # The new position is tested for legality. If it is illegal, the card is placed back
             if not self.card_location_is_valid_spot(position_first_tile, position_second_tile, new_card):
-                print("The orientation where you want to place your recycled card is not valid.")
+                print("The location where you want to place your recycled card is not valid.")
                 self.board[position_card_1st_tile[1]][position_card_1st_tile[0]] = card_1st_tile
                 self.board[position_card_2nd_tile[1]][position_card_2nd_tile[0]] = card2nd_tile
                 return None
+
             self.board[position_first_tile[1]][position_first_tile[0]] = new_card.activeSide.tile1
             self.board[position_second_tile[1]][position_second_tile[0]] = new_card.activeSide.tile2
 
         else:
-            print("Either change the side of the card and keep it at the same position, or keep the same orientation and move the card.")
+            print("You cannot keep the same rotation and position.")
             return None
 
         # Make sure the same card can't be recycled twice
@@ -553,6 +532,5 @@ def game_loop():
         # We switch to the other player
         other_player = current_player
         current_player = p1 if current_player == p2 else p2
-
 
 game_loop()
