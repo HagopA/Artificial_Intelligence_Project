@@ -244,7 +244,7 @@ class Board:
     def swap_card(self, args):
         # Check if you should recycle on this turn
         if not self.isInRecyclingPhase():
-            print("Error: Cannot do a recycling move until " + self.maxNbrCards + " cards are on the board.\n" \
+            print("Error: Cannot do a recycling move until " + str(self.maxNbrCards) + " cards are on the board.\n" \
                                                                                   "Please do a normal move instead.")
             return None
 
@@ -362,7 +362,7 @@ class Board:
         """
         # Ensure that an exception is thrown when we try to exceed the max number of cards to indicate failure
         if self.nbrCards >= self.maxNbrCards:
-            print("Error: Cannot insert more than " + self.maxNbrCards + " cards on the board.\nPlease do a recycling "
+            print("Error: Cannot insert more than " + str(self.maxNbrCards) + " cards on the board.\nPlease do a recycling "
                                                                          "move instead.")
             return None
         try:
@@ -476,36 +476,75 @@ class Board:
                     return True
         return False
 
+    @toggle_printing_off_decorator
     def generate_valid_next_moves(self):
-        valid_moves = list()
         # The valid moves are generated differently depending on the current phase (standard moves or recycling moves)
         if self.isInRecyclingPhase():
-            raise Exception("not implemented")
+            return [] #self.generate_valid_recycling_moves()
         else:
-            # For all rows on the board, search upwards through the corresponding column
-            # in order to find the first empty tile.
-            for i in range(0, self.DIMENSIONS_X_Y[0]):
-                for j in range(0, self.DIMENSIONS_X_Y[1]):
-                    # If we found the first empty tile, try to insert a card from this position.
-                    if not isinstance(self.board[j][i], Tile):
-                        potential_valid_moves = None
-                        # If we are checking the very last column, then there is no need to check the "horizontal" moves
-                        #  => they are invalid for sure.
-                        if i == self.DIMENSIONS_X_Y[0] - 1:
-                            potential_valid_moves = self.generate_valid_regular_moves_from_pos_and_rot_codes((i, j), self.get_vertical_rotation_codes())
-                        # Similar logic applies to the very top row, the "vertical" moves
-                        # are guaranteed to be invalid.
-                        elif j == self.DIMENSIONS_X_Y[1] - 1:
-                            potential_valid_moves = self.generate_valid_regular_moves_from_pos_and_rot_codes((i, j), self.get_horizontal_rotation_codes())
-                        else:
-                            potential_valid_moves = self.generate_valid_regular_moves_from_pos_and_rot_codes((i, j), self.get_rotation_codes())
-                        if potential_valid_moves is not None:
-                            valid_moves.extend(potential_valid_moves)
-                        # We should NOT search the tiles upwards from the first empty tile, since they are guaranteed to be invalid.
-                        break
-        return valid_moves
+            return [] #self.generate_valid_regular_moves()
 
-    @toggle_printing_off_decorator
+    def generate_valid_recycling_moves(self):
+        cardOwnerPreviousTile = None
+        cardsThatCanBeRecycled = list()
+        # For all rows on the board, search upwards through the corresponding column
+        # in order to find the highest nonempty tile of each column. This is because we can only recycle cards
+        # that do not have anything on top of them.
+        for i in range(0, self.DIMENSIONS_X_Y[0]):
+            for j in range(0, self.DIMENSIONS_X_Y[1]):
+                # If we found the highest tile on that column (i.e. the next highest tile is either an empty tile
+                # or the very top of the board), then generate valid recycling moves that involve swapping it out.
+                if isinstance(self.board[j][i], Tile) and \
+                        (not isinstance(self.board[j + 1][i], Tile) or ((j+1) == self.DIMENSIONS_X_Y[1])):
+                    cardToRecycle = self.board[j][i].cardOwner
+                    # If we already checked the valid moves of that card, we can ignore it.
+                    if cardToRecycle != cardOwnerPreviousTile:
+                        cardsThatCanBeRecycled.append(cardToRecycle)
+                    cardOwnerPreviousTile = cardToRecycle
+
+                    # We should NOT search the tiles upwards from there.
+                    break
+
+        valid_recycling_moves = list()
+        # Then, for each card that can be recycled, generate its valid next moves
+        for card in cardsThatCanBeRecycled:
+            potential_valid_recycling_moves = self.generate_valid_recycling_moves_for_card(card, cardsThatCanBeRecycled)
+            if potential_valid_recycling_moves != None:
+                valid_recycling_moves.extend(potential_valid_recycling_moves)
+        return valid_recycling_moves # valid_recycling_moves
+
+    def generate_valid_recycling_moves_for_card(self, card, cardsThatCanBeRecycled):
+        recycling_moves = list()
+
+
+    def generate_valid_regular_moves(self):
+        valid_regular_moves = list()
+        # For all rows on the board, search upwards through the corresponding column
+        # in order to find the first empty tile.
+        for i in range(0, self.DIMENSIONS_X_Y[0]):
+            for j in range(0, self.DIMENSIONS_X_Y[1]):
+                # If we found the first empty tile, try to insert a card from this position.
+                if not isinstance(self.board[j][i], Tile):
+                    potential_valid_moves = None
+                    # If we are checking the very last column, then there is no need to check the "horizontal" moves
+                    #  => they are invalid for sure.
+                    if i == self.DIMENSIONS_X_Y[0] - 1:
+                        potential_valid_moves = self.generate_valid_regular_moves_from_pos_and_rot_codes((i, j),
+                                                                        self.get_vertical_rotation_codes())
+                    # Similar logic applies to the very top row, the "vertical" moves
+                    # are guaranteed to be invalid.
+                    elif j == self.DIMENSIONS_X_Y[1] - 1:
+                        potential_valid_moves = self.generate_valid_regular_moves_from_pos_and_rot_codes((i, j),
+                                                                        self.get_horizontal_rotation_codes())
+                    else:
+                        potential_valid_moves = self.generate_valid_regular_moves_from_pos_and_rot_codes((i, j),
+                                                                        self.get_rotation_codes())
+                    if potential_valid_moves is not None:
+                        valid_regular_moves.extend(potential_valid_moves)
+                    # We should NOT search the tiles upwards from the first empty tile, since they are guaranteed to be invalid.
+                    break
+        return valid_regular_moves
+
     def generate_valid_regular_moves_from_pos_and_rot_codes(self, position, rotation_codes):
         regular_moves = list()
         for rotation_code in rotation_codes:
@@ -603,8 +642,8 @@ def game_loop():
     while True:
         inserted_tiles_pos = b.ask_for_input(current_player.name)
         print(b)
-        for valid_move in b.generate_valid_next_moves():
-            print (valid_move)
+        #for valid_move in b.generate_valid_next_moves():
+        #    print (valid_move)
         if b.nbrCards >= 4:
             # Even if the other player wins at the same time as the current player, the current player has
             # the priority.
