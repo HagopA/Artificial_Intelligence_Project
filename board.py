@@ -520,7 +520,7 @@ class Board:
                     return True
         return False
 
-    #@toggle_printing_off_decorator
+    @toggle_printing_off_decorator
     def check_four_consecutive(self, tile_pos, offset, type_item):
         """ Check whether or not there are 4 consecutive tiles with the same state of the type item
             from tilePos in the direction of the offset (offset can be seen as a normalized direction vector).
@@ -552,13 +552,13 @@ class Board:
         return nbr_consecutives
 
     def generate_valid_next_moves(self):
-        #with TogglePrintingOffGuard():
-        # The valid moves are generated differently depending on the current phase (standard moves or recycling moves)
-        if self.isInRecyclingPhase():
-            return self.generate_valid_recycling_moves()
-        else:
-            print ("is in not recycling")
-            return self.generate_valid_regular_moves()
+        with TogglePrintingOffGuard():
+            # The valid moves are generated differently depending on the current phase (standard moves or recycling moves)
+            if self.isInRecyclingPhase():
+                return self.generate_valid_recycling_moves()
+            else:
+                print ("is in not recycling")
+                return self.generate_valid_regular_moves()
 
     def generate_valid_recycling_moves(self):
         cardOwnerPreviousTile = None
@@ -589,6 +589,7 @@ class Board:
         valid_recycling_moves = list()
         # Then, for each card that can be recycled, generate its valid next moves
         for card, locations in cards_recycled_and_locations.items():
+            print (str(card), str(locations))
             potential_valid_recycling_moves = self.generate_valid_recycling_moves_for_card(card, locations, valid_tile_locations)
             if potential_valid_recycling_moves != None:
                 valid_recycling_moves.extend(potential_valid_recycling_moves)
@@ -613,8 +614,6 @@ class Board:
                 and self.board[first_tile_position[1] - 1][first_tile_position[0]].cardOwner == card:
             return (first_tile_position[0], first_tile_position[1]-1)
 
-
-
     def generate_valid_recycling_moves_for_card(self, card, cardLocations, valid_tile_locations):
         recycling_moves = list()
         for newCardLocation in valid_tile_locations:
@@ -622,9 +621,7 @@ class Board:
                 if self.isValidRecyclingMove(card.activeSide.tile1, card.activeSide.tile2, rotationCode,
                                         newCardLocation, cardLocations[0], cardLocations[1]):
                     recycling_moves.append([card, cardLocations, rotationCode, newCardLocation])
-        print (recycling_moves)
         return recycling_moves
-
 
     def generate_valid_regular_moves(self):
         valid_regular_moves = list()
