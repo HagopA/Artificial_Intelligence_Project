@@ -22,7 +22,7 @@ def all_values_positive(col1, row1, col2, row2):
     return True
 
 
-def findMinimax(board):
+def findMinimax(board, tracing):
     level2Array = []
     level3Nodes = 0
     for move in board.generate_valid_next_moves():
@@ -194,26 +194,27 @@ class Board:
         sum_empty_red = 0
         for x in range(0,11):
             for y in range(0,7):
-                if self.board[x][y] is Tile:
+                if isinstance(self.board[x][y],Tile):
                     coord_value = self.heuristic_board_conversion[str(x) + str(y)]
-                    if self.board[x][y].Color == Tile.Color.white and self.board[x][y].DotState == Tile.DotState.empty:
+                    if self.board[x][y].color == Tile.Color.white and self.board[x][y].dotState == Tile.DotState.empty:
                         # "sum the coordinates of each white empty dot O "
                         sum_empty_white += coord_value
-                    elif self.board[x][y].Color == Tile.Color.white and self.board[x][y].DotState == Tile.DotState.filled:
+                    elif self.board[x][y].color == Tile.Color.white and self.board[x][y].dotState == Tile.DotState.filled:
                         # "sum the coordinates of each white full dot  • "
                         sum_full_white += coord_value
-                    elif self.board[x][y].Color == Tile.Color.red and self.board[x][y].DotState == Tile.DotState.filled:
+                    elif self.board[x][y].color == Tile.Color.red and self.board[x][y].dotState == Tile.DotState.filled:
                         # " sum the coordinates of each red full dot • "
                         sum_full_red += coord_value
-                    elif self.board[x][y].Color == Tile.Color.red and self.board[x][y].DotState == Tile.DotState.empty:
+                    elif self.board[x][y].color == Tile.Color.red and self.board[x][y].dotState == Tile.DotState.empty:
                         # " sum the coordinates of each red empty dot O "
                         sum_empty_red += coord_value
         evaluation_func = sum_empty_white + 3 * sum_full_white - 2 * sum_empty_red - 1.5 * sum_full_red
         return evaluation_func
 
-    def ai_move(self):
-        aiMove = findMinimax(self)
+    def ai_move(self, tracing):
+        aiMove = findMinimax(self, tracing)
         self.insert_card_direct(aiMove[0], aiMove[1])
+
 
     def removeCard(self, new_card, position):
 
@@ -586,7 +587,6 @@ class ColorPlayer:
         self.typeItem = Tile.Color
 
 
-tracing = None
 def game_loop():
     b = Board(NBR_CARDS)
     p1 = DotPlayer()
@@ -623,6 +623,7 @@ def game_loop():
             ai_input = input("Invalid entry. Please try again \n")
 
     if ai_mode:
+        tracing = None
         trace_input = input("Would you like to produce a trace of the minimax? Enter Y for yes or N for no \n" )
         while True:
             if len(trace_input) == 0:
@@ -694,7 +695,7 @@ def game_loop():
     while True:
         if ai_player != None and current_player == ai_player:
             print(b.generate_valid_next_moves())
-            b.ai_move()
+            b.ai_move(tracing)
         else:
             inserted_tiles_pos = b.ask_for_input(current_player.name)
         print(b)
