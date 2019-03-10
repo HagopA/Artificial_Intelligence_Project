@@ -154,10 +154,10 @@ class Board:
     # The coordinate is also used to find the positions 'weight' using the dict above
     # Based on the formula, the evaluation function is calculated
     def heuristic(self):
-        empty_white = 0
-        full_white = 0
-        empty_red = 0
-        full_red = 0
+        sum_empty_white = 0
+        sum_full_white = 0
+        sum_full_red = 0
+        sum_empty_red = 0
         for x in range(0,8):
             for y in range(0,13):
                     if self.board[x][y] is not None:
@@ -165,14 +165,18 @@ class Board:
                         y = str(y)
                         coord_value = self.HEURISTIC_BOARD_CONVERSION[x+y]
                         if Tile.Color.value == 'W' and Tile.DotState.value == 'E':
-                            empty_white += coord_value
+                            # "sum the coordinates of each white empty dot O "
+                            sum_empty_white += coord_value
                         elif Tile.Color.value == 'W' and Tile.DotState.value == 'F':
-                            full_white += coord_value
-                        elif Tile.Color.value == 'R' and Tile.DotState.value == 'E':
-                            empty_red += coord_value
+                            # "sum the coordinates of each white full dot  • "
+                            sum_full_white += coord_value
                         elif Tile.Color.value == 'R' and Tile.DotState.value == 'F':
-                            full_red += coord_value
-        evaluation_func = empty_white + 3 * full_white - 2 * full_red - 1.5 * empty_red
+                            # " sum the coordinates of each red full dot • "
+                            sum_full_red += coord_value
+                        elif Tile.Color.value == 'R' and Tile.DotState.value == 'E':
+                            # " sum the coordinates of each red empty dot O "
+                            sum_empty_red += coord_value
+        evaluation_func = sum_empty_white + 3 * sum_full_white - 2 * sum_empty_red - 1.5 * sum_full_red
         return evaluation_func
 
     def __init__(self, max_nbr_cards):
