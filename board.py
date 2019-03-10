@@ -5,6 +5,8 @@ import copy
 
 # The specifications tell us that there are 24 cards available to be placed on the board (shared between both players).
 NBR_CARDS = 24
+# The specifications tell us that there are a maximum of 60 moves, after which the game ends in a draw.
+MAX_NBR_MOVES = 60
 
 # lambda expressions shouldn't be assigned to variables in Python, should be translated to a function
 # add_tuples = lambda tuple1, tuple2: tuple(x + y for x, y in zip(tuple1, tuple2))
@@ -570,7 +572,6 @@ class Board:
 
 
 class DotPlayer:
-
     def __init__(self):
         self.name = "player1 - dots"
         self.typeItem = Tile.DotState
@@ -617,8 +618,8 @@ def game_loop():
         else:
             user_input = input("Invalid entry. Please try again \n")
 
-
-    while True:
+    nbrMoves = 0
+    while nbrMoves < MAX_NBR_MOVES:
         inserted_tiles_pos = b.ask_for_input(current_player.name)
         print(b)
         #for valid_move in b.generate_valid_next_moves():
@@ -637,5 +638,8 @@ def game_loop():
         # We switch to the other player
         other_player = current_player
         current_player = p1 if current_player == p2 else p2
+        # It is a 2 player game, so 2 moves per turn
+        nbrMoves += 2
+    print (str(MAX_NBR_MOVES) + " have been played. Thus, the game ends in a DRAW!! Congratulations to both players!")
 
 game_loop()
