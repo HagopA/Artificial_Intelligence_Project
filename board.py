@@ -134,19 +134,10 @@ class Board:
     # Keys are represented by coordinate pairs.
     # Example: '24' represents coordinate (2,4). '512' represents coordinate (5,12).
     # The associated value is the numeric weight assigned to that coordinate (given by the prof)
-    HEURISTIC_BOARD_CONVERSION = {
-        '011': 111, '111': 112, '211': 113, '311': 114, '411': 115, '511': 116, '611': 117, '711': 118,
-        '010': 101, '110': 102, '210': 103, '310': 104, '410': 105, '510': 106, '610': 107, '710': 108,
-        '09': 91, '19': 92, '29': 93, '39': 94, '49': 95, '59': 96, '69': 97, '79': 98,
-        '08': 81, '18': 82, '28': 83, '38': 84, '48': 85, '58': 86, '68': 87, '78': 88,
-        '07': 71, '17': 72, '27': 73, '37': 74, '47': 75, '57': 76, '67': 77, '77': 78,
-        '06': 61, '16': 62, '26': 63, '36': 64, '46': 65, '56': 66, '66': 67, '76': 68,
-        '05': 51, '15': 52, '25': 53, '35': 54, '45': 55, '55': 56, '65': 57, '75': 58,
-        '04': 41, '14': 42, '24': 43, '34': 44, '44': 45, '54': 46, '64': 47, '74': 48,
-        '03': 31, '13': 32, '23': 33, '33': 34, '43': 35, '53': 36, '63': 37, '73': 38,
-        '02': 21, '12': 22, '22': 23, '32': 24, '42': 25, '52': 26, '62': 27, '72': 28,
-        '01': 11, '11': 12, '21': 13, '31': 14, '41': 15, '51': 16, '61': 17, '71': 18,
-        '00': 1, '10': 2, '20': 3, '30': 4, '40': 5, '50': 6, '60': 7, '70': 8, }
+    heuristic_board_conversion = dict()
+    for i in range(0, DIMENSIONS_X_Y[1]):
+        for j in range(0, DIMENSIONS_X_Y[0]):
+            heuristic_board_conversion[str(j) + str(i)] = i * 10 + (j + 1)
 
     # Looping through the board
     # For all coordinates with a card placed on it, we determine if it's red/white and empty/filled
