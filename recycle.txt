@@ -37,3 +37,19 @@ E 2 F 2 1 E 2
 0 3 A 10
 0 3 A 11
 0 3 A 12
+
+# Recycling moves against AI
+0 1 A 1
+0 1 A 2
+0 1 A 3
+0 3 A 4
+0 3 A 5
+0 3 D 1
+0 3 D 2
+0 3 D 3
+0 2 C 1
+0 2 C 3
+0 2 C 5
+0 2 C 7
+
+

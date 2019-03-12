@@ -29,24 +29,49 @@ def all_values_positive(col1, row1, col2, row2):
         return False
     return True
 
+class RecyclingMove:
+    def __init__(self, new_card, position_card_1st_tile, position_card_2nd_tile, position_first_tile, position_second_tile):
+        self.new_card = new_card
+        self.position_card_1st_tile = position_card_1st_tile
+        self.position_card_2nd_tile = position_card_2nd_tile
+        self.position_first_tile = position_first_tile
+        self.position_second_tile = position_second_tile
 
 def findMinimax(board, tracing):
     level2Array = []
     level3Nodes = 0
-    for move in board.generate_valid_next_moves():
-        board.insert_card_direct(move[0], move[1])
-        level2Heuristic = 1000000
-        for level3move in board.generate_valid_next_moves():
-            board.insert_card_direct(level3move[0], level3move[1])
-            level3Heuristic = board.heuristic()
-            if level3Heuristic < level2Heuristic:
-                level2Heuristic = level3Heuristic
-            board.removeCard(level3move[0], level3move[1])
-            level3Nodes += 1
-        if level2Heuristic == 1000000:
-            level2Heuristic = board.heuristic()
-        level2Array.append([level2Heuristic, move])
-        board.removeCard(move[0], move[1])
+
+    if board.isInRecyclingPhase():
+        for recycling_move in board.generate_valid_recycling_moves():
+            board.swap_card_direct(recycling_move)
+            level2Heuristic = 1000000
+            for level3_recycling_move in board.generate_valid_recycling_moves():
+                board.swap_card_direct(level3_recycling_move)
+                level3Heuristic = board.heuristic_recycling_moves()
+                if level3Heuristic < level2Heuristic:
+                    level2Heuristic = level3Heuristic
+                board.put_back_card_direct(level3_recycling_move)
+                level3Nodes += 1
+            if level2Heuristic == 1000000:
+                level2Heuristic = board.heuristic_recycling_moves()
+            level2Array.append([level2Heuristic, recycling_move])
+            # Restore the swapped card
+            board.put_back_card_direct(recycling_move)
+    else:
+        for recycling_move in board.generate_valid_regular_moves():
+            board.insert_card_direct(recycling_move[0], recycling_move[1])
+            level2Heuristic = 1000000
+            for level3move in board.generate_valid_regular_moves():
+                board.insert_card_direct(level3move[0], level3move[1])
+                level3Heuristic = board.heuristic_regular_moves()
+                if level3Heuristic < level2Heuristic:
+                    level2Heuristic = level3Heuristic
+                board.remove_card(level3move[0], level3move[1])
+                level3Nodes += 1
+            if level2Heuristic == 1000000:
+                level2Heuristic = board.heuristic_regular_moves()
+            level2Array.append([level2Heuristic, recycling_move])
+            board.remove_card(recycling_move[0], recycling_move[1])
 
     chosenHeuristic = level2Array[0][0]
     moveChosen = level2Array[0][1]
@@ -91,8 +116,10 @@ class Tile:
             return self.dotState
 
     def __str__(self):
+        if isinstance(self.cardOwner.id, Card):
+            print ("allo")
         # Note: We assume there is no more than 99 different ids
-        return self.color.value + self.dotState.value + "%-2d" % self.cardOwner
+        return self.color.value + self.dotState.value + "%-2d" % self.cardOwner.id
 
 
 
@@ -120,20 +147,14 @@ class Card:
     id_count = 0
 
     def __init__(self, rotation_code=1, id=-1):
-        """ #Will probably remove, unless we find out for whatever reason that
-            #the card needs to know who is the player that placed it
-        if len(playerOwner) > 1:
-            print("Note: only the first letter of the player's name will be shown in output.")
-        self.playerOwner = playerOwner
-        """
         if id == -1:
             self.id = Card.id_count
         else:
             self.id = id
-        self.side1 = Side(Tile(Tile.Color.red, Tile.DotState.filled, self.id, rotation_code),
-                          Tile(Tile.Color.white, Tile.DotState.empty, self.id, rotation_code))
-        self.side2 = Side(Tile(Tile.Color.red, Tile.DotState.empty, self.id, rotation_code),
-                          Tile(Tile.Color.white, Tile.DotState.filled, self.id, rotation_code))
+        self.side1 = Side(Tile(Tile.Color.red, Tile.DotState.filled, self, rotation_code),
+                          Tile(Tile.Color.white, Tile.DotState.empty, self, rotation_code))
+        self.side2 = Side(Tile(Tile.Color.red, Tile.DotState.empty, self, rotation_code),
+                          Tile(Tile.Color.white, Tile.DotState.filled, self, rotation_code))
         self.rotationCode = rotation_code
         if self.rotationCode <= self.NBR_ROTATION_CODES / 2:
             self.activeSide = self.side1
@@ -177,9 +198,9 @@ class Board:
     # Example: '24' represents coordinate (B,4). '512' represents coordinate (E,12).
     # The associated value is the numeric weight assigned to that coordinate (given by the prof)
     heuristic_board_conversion = dict()
-    for i in range(0, DIMENSIONS_X_Y[1]):
-        for j in range(0, DIMENSIONS_X_Y[0]):
-            heuristic_board_conversion[str(j) + str(i)] = i * 10 + (j + 1)
+    for i in range(0, DIMENSIONS_X_Y[0]):
+        for j in range(0, DIMENSIONS_X_Y[1]):
+            heuristic_board_conversion[(i, j)] = (i + 1) + j * 10
 
     def __init__(self, max_nbr_cards):
         # NOTE: Initially, the board is empty (no cards on it), so no tiles are on it either.
@@ -195,36 +216,44 @@ class Board:
     # For all coordinates with a card placed on it, we determine if it's red/white and empty/filled
     # The coordinate is also used to find the positions 'weight' using the dict above
     # Based on the formula, the evaluation function is calculated
-    def heuristic(self):
+    def heuristic_regular_moves(self):
         sum_empty_white = 0
         sum_full_white = 0
         sum_full_red = 0
         sum_empty_red = 0
-        for x in range(0,11):
-            for y in range(0,7):
-                if isinstance(self.board[x][y],Tile):
-                    coord_value = self.heuristic_board_conversion[str(x) + str(y)]
-                    if self.board[x][y].color == Tile.Color.white and self.board[x][y].dotState == Tile.DotState.empty:
+        for x in range(0, self.DIMENSIONS_X_Y[0]):
+            for y in range(0, self.DIMENSIONS_X_Y[1]):
+                if isinstance(self.board[y][x],Tile):
+                    coord_value = self.heuristic_board_conversion[(x, y)]
+                    if self.board[y][x].color == Tile.Color.white and self.board[y][x].dotState == Tile.DotState.empty:
                         # "sum the coordinates of each white empty dot O "
                         sum_empty_white += coord_value
-                    elif self.board[x][y].color == Tile.Color.white and self.board[x][y].dotState == Tile.DotState.filled:
+                    elif self.board[y][x].color == Tile.Color.white and self.board[y][x].dotState == Tile.DotState.filled:
                         # "sum the coordinates of each white full dot  • "
                         sum_full_white += coord_value
-                    elif self.board[x][y].color == Tile.Color.red and self.board[x][y].dotState == Tile.DotState.filled:
+                    elif self.board[y][x].color == Tile.Color.red and self.board[y][x].dotState == Tile.DotState.filled:
                         # " sum the coordinates of each red full dot • "
                         sum_full_red += coord_value
-                    elif self.board[x][y].color == Tile.Color.red and self.board[x][y].dotState == Tile.DotState.empty:
+                    elif self.board[y][x].color == Tile.Color.red and self.board[y][x].dotState == Tile.DotState.empty:
                         # " sum the coordinates of each red empty dot O "
                         sum_empty_red += coord_value
         evaluation_func = sum_empty_white + 3 * sum_full_white - 2 * sum_empty_red - 1.5 * sum_full_red
         return evaluation_func
 
+    # Since the number of possible moves during the recycling phase and the regular phase are different,
+    # the heuristic should be different as well (less costly when in recycling phase)
+    def heuristic_recycling_moves(self):
+        # For iteration 2, we use the same naive heuristic for both recyling moves and regular moves.
+        return self.heuristic_regular_moves()
+
     def ai_move(self, tracing):
-        aiMove = findMinimax(self, tracing)
-        self.insert_card_direct(aiMove[0], aiMove[1])
+        with TogglePrintingOffGuard():
+            aiMove = findMinimax(self, tracing)
+            self.nbrCards += 1
+            Card.id_count += 1
+            return self.swap_card_direct(aiMove) if isinstance(aiMove, RecyclingMove) else self.insert_card_direct(aiMove[0], aiMove[1])
 
-
-    def removeCard(self, new_card, position):
+    def remove_card(self, new_card, position):
 
         position_first_tile, position_second_tile = new_card.get_tile_positions(position)
         self.board[position_first_tile[1]][position_first_tile[0]] = ' ' * 4
@@ -353,35 +382,44 @@ class Board:
             print(args[5] + " " + args[6] + " does not represent a valid position.")
             return None
 
-        if self.isValidRecyclingMove(card_1st_tile, card_2nd_tile, input_rot_code, position_new_card,
-                                        position_card_1st_tile, position_card_2nd_tile):
-            self.board[position_card_1st_tile[1]][position_card_1st_tile[0]] = ' ' * 4
-            self.board[position_card_2nd_tile[1]][position_card_2nd_tile[0]] = ' ' * 4
-            self.board[position_first_tile[1]][position_first_tile[0]] = new_card.activeSide.tile1
-            self.board[position_second_tile[1]][position_second_tile[0]] = new_card.activeSide.tile2
+
+        recyclingMove = self.get_valid_recycling_move(card_1st_tile, card_2nd_tile, input_rot_code, position_new_card,
+                                                      position_card_1st_tile, position_card_2nd_tile)
+        if recyclingMove is not None:
+            self.swap_card_direct(recyclingMove)
 
         # Make sure the same card can't be recycled twice
         self.recycled_card = card_1st_tile.cardOwner
 
         return [position_first_tile, position_second_tile]
 
-    def isValidRecyclingMove(self, card_1st_tile, card_2nd_tile, input_rot_code, position_new_card,
-                             position_card_1st_tile, position_card_2nd_tile):
-        global position_first_tile
-        global position_second_tile
-        global new_card
+    def swap_card_direct(self, recyclingMove):
+        self.board[recyclingMove.position_card_1st_tile[1]][recyclingMove.position_card_1st_tile[0]] = ' ' * 4
+        self.board[recyclingMove.position_card_2nd_tile[1]][recyclingMove.position_card_2nd_tile[0]] = ' ' * 4
+        self.board[recyclingMove.position_first_tile[1]][recyclingMove.position_first_tile[0]] = recyclingMove.new_card.activeSide.tile1
+        self.board[recyclingMove.position_second_tile[1]][recyclingMove.position_second_tile[0]] = recyclingMove.new_card.activeSide.tile2
+        return [recyclingMove.position_first_tile, recyclingMove.position_second_tile]
 
+    # Method used to "cancel" a recycling move
+    def put_back_card_direct(self, recyclingMove):
+        self.board[recyclingMove.position_card_1st_tile[1]][recyclingMove.position_card_1st_tile[0]] = recyclingMove.new_card.activeSide.tile1
+        self.board[recyclingMove.position_card_2nd_tile[1]][recyclingMove.position_card_2nd_tile[0]] = recyclingMove.new_card.activeSide.tile2
+        self.board[recyclingMove.position_first_tile[1]][recyclingMove.position_first_tile[0]] = ' ' * 4
+        self.board[recyclingMove.position_second_tile[1]][recyclingMove.position_second_tile[0]] = ' ' * 4
+
+    def get_valid_recycling_move(self, card_1st_tile, card_2nd_tile, input_rot_code, position_new_card,
+                                 position_card_1st_tile, position_card_2nd_tile):
         # Makes sure the last card used isn't the one being played now
         if card_1st_tile.cardOwner == self.recycled_card:
             print("You cannot move the card that was moved/played last turn. Please choose another card.")
-            return False
+            return None
 
         # Check if the card has the same rotation code and a different location, to be a legal recycle move
         if not(card_1st_tile.rotationCode == input_rot_code and position_new_card[0] == min(position_card_1st_tile[0], position_card_2nd_tile[0])
                and position_new_card[1] == min(position_card_1st_tile[1], position_card_2nd_tile[1])):
             self.board[position_card_1st_tile[1]][position_card_1st_tile[0]] = ' ' * 4
             self.board[position_card_2nd_tile[1]][position_card_2nd_tile[0]] = ' ' * 4
-            new_card = Card(input_rot_code, card_1st_tile.cardOwner)
+            new_card = Card(input_rot_code)
             position_first_tile, position_second_tile = new_card.get_tile_positions(position_new_card)
 
             # The new position is tested for legality. Place the card back before returning,
@@ -390,14 +428,15 @@ class Board:
                 print("The location where you want to place your recycled card is not valid.")
                 self.board[position_card_1st_tile[1]][position_card_1st_tile[0]] = card_1st_tile
                 self.board[position_card_2nd_tile[1]][position_card_2nd_tile[0]] = card_2nd_tile
-                return False
+                return None
             self.board[position_card_1st_tile[1]][position_card_1st_tile[0]] = card_1st_tile
             self.board[position_card_2nd_tile[1]][position_card_2nd_tile[0]] = card_2nd_tile
 
-            return True
+            return RecyclingMove(new_card, position_card_1st_tile, position_card_2nd_tile,
+                                    position_first_tile, position_second_tile)
 
         print("You cannot keep the same rotation and position.")
-        return False
+        return None
 
     def insert_card(self, input_args):
         """ Tries to insert card into the board from the inputArgs given by player.
@@ -443,6 +482,7 @@ class Board:
         position_first_tile, position_second_tile = new_card.get_tile_positions(position)
         self.board[position_first_tile[1]][position_first_tile[0]] = new_card.activeSide.tile1
         self.board[position_second_tile[1]][position_second_tile[0]] = new_card.activeSide.tile2
+        return (position_first_tile, position_second_tile)
 
     def check_four_consecutive(self, tile_pos, offset, type_item):
         """ Check whether or not there are 4 consecutive tiles with the same state of the type item
@@ -529,9 +569,7 @@ class Board:
         """ Check whether or not there are 4 consecutive tiles with the same state of the type item
             from tilePos in the direction of the offset (offset can be seen as a normalized direction vector).
         """
-        print (self.get_nbr_matching_tiles_in_offset_direction(tile_pos, offset, type_item))
         nbr_consecutives = 1 + self.get_nbr_matching_tiles_in_offset_direction(tile_pos, offset, type_item)
-        #print (nbr_consecutives)
         # We never need to check the direction directly up from the inserted tile (offset (1, 1)) because it is
         # impossible to find a match in that direction.
         # If the number of consecutive tiles found is smaller than 4, then search in the opposite direction
@@ -539,8 +577,6 @@ class Board:
             opposite_direction_offset = get_negative_tuple(offset)
             nbr_consecutives += self.get_nbr_matching_tiles_in_offset_direction(
                                                             tile_pos, opposite_direction_offset, type_item)
-            print(self.get_nbr_matching_tiles_in_offset_direction(
-                                                            tile_pos, opposite_direction_offset, type_item))
         return nbr_consecutives >= 4
 
     def get_nbr_matching_tiles_in_offset_direction(self, tile_pos, offset, type_item):
@@ -559,17 +595,9 @@ class Board:
             current_pos = next_pos
         return nbr_consecutives
 
-    @toggle_printing_off_decorator
-    def generate_valid_next_moves(self):
-        # The valid moves are generated differently depending on the current phase (standard moves or recycling moves)
-        if self.isInRecyclingPhase():
-            return self.generate_valid_recycling_moves()
-        else:
-            return self.generate_valid_regular_moves()
-
     def generate_valid_recycling_moves(self):
         cardOwnerPreviousTile = None
-        cardsThatCanBeRecycledAndTheirLocations = dict()
+        cards_recycled_and_locations = dict()
         valid_tile_locations = list()
         # For all rows on the board, search upwards through the corresponding column
         # in order to find the highest nonempty tile of each column. This is because we can only recycle cards
@@ -579,47 +607,60 @@ class Board:
                 # If we found the highest tile on that column (i.e. the next highest tile is either an empty tile
                 # or the very top of the board), then generate valid recycling moves that involve swapping it out.
                 if isinstance(self.board[j][i], Tile) and \
-                        (not isinstance(self.board[j + 1][i], Tile) or ((j+1) == self.DIMENSIONS_X_Y[1])):
+                        (((j+1) == self.DIMENSIONS_X_Y[1]) or not isinstance(self.board[j + 1][i], Tile)):
                     cardToRecycle = self.board[j][i].cardOwner
                     # If we already checked the valid moves of that card, we can ignore it.
                     if cardToRecycle != cardOwnerPreviousTile:
-                        cardsThatCanBeRecycledAndTheirLocations[cardToRecycle] = ((i, j), self.find_location_other_tile_of_card(cardToRecycle, (i, j)))
+                        cards_recycled_and_locations[cardToRecycle] = ((i, j), self.find_location_other_tile_of_card(cardToRecycle, (i, j)))
                     cardOwnerPreviousTile = cardToRecycle
                     # If the tile above the current one is not out of bounds, then
                     # we assume that it is a valid tile location, since it is, by definition, the
                     # first empty tile we encounter going upwards.
-                    if (j + 1) == self.DIMENSIONS_X_Y[1]:
+                    if j + 1 < self.DIMENSIONS_X_Y[1]:
                         valid_tile_locations.append((i, j+1))
                     # We should NOT search the tiles upwards from there.
                     break
+                # If the column contains no tile, then the bottom position of the column
+                # needs to be added as a valid tile location for the recycling move.
+                if j == 0 and not isinstance(self.board[j][i], Tile):
+                    valid_tile_locations.append((i, j))
 
         valid_recycling_moves = list()
         # Then, for each card that can be recycled, generate its valid next moves
-        for card, locations in cardsThatCanBeRecycledAndTheirLocations.items():
+        for card, locations in cards_recycled_and_locations.items():
             potential_valid_recycling_moves = self.generate_valid_recycling_moves_for_card(card, locations, valid_tile_locations)
             if potential_valid_recycling_moves != None:
                 valid_recycling_moves.extend(potential_valid_recycling_moves)
-        return valid_recycling_moves # valid_recycling_moves
+        return valid_recycling_moves
 
     def find_location_other_tile_of_card(self, card, first_tile_position):
-        if (first_tile_position[0] + 1) < self.DIMENSIONS_X_Y[0] and self.board[first_tile_position[1]][first_tile_position[0] + 1] == card:
+        if (first_tile_position[0] + 1) < self.DIMENSIONS_X_Y[0] \
+                and isinstance(self.board[first_tile_position[1]][first_tile_position[0] + 1], Tile)\
+                and self.board[first_tile_position[1]][first_tile_position[0] + 1].cardOwner == card:
             return (first_tile_position[0]+1, first_tile_position[1])
-        if (first_tile_position[0] - 1) >= 0 and self.board[first_tile_position[1]][first_tile_position[0] - 1] == card:
+        if (first_tile_position[0] - 1) >= 0 \
+                and isinstance(self.board[first_tile_position[1]][first_tile_position[0] - 1], Tile)\
+                and self.board[first_tile_position[1]][first_tile_position[0] - 1].cardOwner == card:
             return (first_tile_position[0] - 1, first_tile_position[1])
-        if (first_tile_position[1] + 1) < self.DIMENSIONS_X_Y[1] and self.board[first_tile_position[1] + 1][first_tile_position[0]] == card:
+        if (first_tile_position[1] + 1) < self.DIMENSIONS_X_Y[1] \
+                and isinstance(self.board[first_tile_position[1] + 1][first_tile_position[0]], Tile) \
+                and self.board[first_tile_position[1] + 1][first_tile_position[0]].cardOwner == card:
             return (first_tile_position[0], first_tile_position[1]+1)
-        if (first_tile_position[1] - 1) >= 0 and self.board[first_tile_position[1] - 1][first_tile_position[0]] == card:
+        if (first_tile_position[1] - 1) >= 0 \
+                and isinstance(self.board[first_tile_position[1] - 1][first_tile_position[0]], Tile)\
+                and self.board[first_tile_position[1] - 1][first_tile_position[0]].cardOwner == card:
             return (first_tile_position[0], first_tile_position[1]-1)
 
     def generate_valid_recycling_moves_for_card(self, card, cardLocations, valid_tile_locations):
         recycling_moves = list()
         for newCardLocation in valid_tile_locations:
             for rotationCode in self.get_rotation_codes():
-                if self.isValidRecyclingMove(card.activeSide.tile1, card.activeSide.tile2, rotationCode,
-                                        newCardLocation, cardLocations[0], cardLocations[1]):
-                    recycling_moves.append([card, cardLocations, rotationCode, newCardLocation])
+                potential_valid_recycling_move = \
+                    self.get_valid_recycling_move(card.activeSide.tile1, card.activeSide.tile2, rotationCode,
+                                                  newCardLocation, cardLocations[0], cardLocations[1])
+                if potential_valid_recycling_move is not None:
+                    recycling_moves.append(potential_valid_recycling_move)
         return recycling_moves
-
 
     def generate_valid_regular_moves(self):
         valid_regular_moves = list()
@@ -700,7 +741,6 @@ class ColorPlayer:
     def __init__(self):
         self.name = "player2 - color"
         self.typeItem = Tile.Color
-
 
 def game_loop():
     b = Board(NBR_CARDS)
@@ -806,19 +846,13 @@ def game_loop():
             else:
                 user_input = input("Invalid entry. Please try again \n")
 
-
-    while True:
-        if ai_player != None and current_player == ai_player:
-            print(b.generate_valid_next_moves())
-            b.ai_move(tracing)
-        else:
-            inserted_tiles_pos = b.ask_for_input(current_player.name)
     nbr_moves = 0
     while nbr_moves < MAX_NBR_MOVES:
-        inserted_tiles_pos = b.ask_for_input(current_player.name)
+        if ai_player != None and current_player == ai_player:
+            inserted_tiles_pos = b.ai_move(tracing)
+        else:
+            inserted_tiles_pos = b.ask_for_input(current_player.name)
         print(b)
-       # for valid_move in b.generate_valid_next_moves():
-       #     print (valid_move)
         if b.nbrCards >= 4:
             # Even if the other player wins at the same time as the current player, the current player has
             # the priority.
@@ -833,9 +867,9 @@ def game_loop():
         # We switch to the other player
         other_player = current_player
         current_player = p1 if current_player == p2 else p2
-        # It is a 2 player game, so 2 moves per turn
-        nbr_moves += 2
-    print (str(MAX_NBR_MOVES) + " have been played. Thus, the game ends in a DRAW!! Congratulations to both players!")
+        nbr_moves += 1
+    print (str(MAX_NBR_MOVES) + " moves have been played. Thus, the game ends in a DRAW!! Congratulations to both players!")
 
+# main
 game_loop()
 
