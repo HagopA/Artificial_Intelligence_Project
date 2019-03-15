@@ -30,12 +30,21 @@ def all_values_positive(col1, row1, col2, row2):
     return True
 
 class RecyclingMove:
-    def __init__(self, new_card, position_card_1st_tile, position_card_2nd_tile, position_first_tile, position_second_tile):
-        self.new_card = new_card
+    def __init__(self, card_to_swap, old_rot_code, new_rot_code,
+                 position_card_1st_tile, position_card_2nd_tile, position_first_tile, position_second_tile):
+        self.card_to_swap = card_to_swap
+        self.old_rot_code = old_rot_code
+        self.new_rot_code = new_rot_code
         self.position_card_1st_tile = position_card_1st_tile
         self.position_card_2nd_tile = position_card_2nd_tile
         self.position_first_tile = position_first_tile
         self.position_second_tile = position_second_tile
+
+class RegularMove:
+    def __init__(self, new_card, position, rotation_code):
+        self.new_card = new_card
+        self.position = position
+        self.rotation_code = rotation_code
 
 def findMinimax(board, tracing):
     level2Array = []
@@ -59,19 +68,19 @@ def findMinimax(board, tracing):
             board.put_back_card_direct(recycling_move)
     else:
         for regular_move in board.generate_valid_regular_moves():
-            board.insert_card_direct(regular_move[0], regular_move[1])
+            board.insert_card_direct(regular_move)
             level2Heuristic = 1000000
             for level3move in board.generate_valid_regular_moves():
-                board.insert_card_direct(level3move[0], level3move[1])
+                board.insert_card_direct(level3move)
                 level3Heuristic = board.heuristic_regular_moves()
                 if level3Heuristic < level2Heuristic:
                     level2Heuristic = level3Heuristic
-                board.remove_card(level3move[0], level3move[1])
+                board.remove_card(level3move)
                 level3Nodes += 1
             if level2Heuristic == 1000000:
                 level2Heuristic = board.heuristic_regular_moves()
             level2Array.append([level2Heuristic, regular_move])
-            board.remove_card(regular_move[0], regular_move[1])
+            board.remove_card(regular_move)
 
     chosenHeuristic = level2Array[0][0]
     moveChosen = level2Array[0][1]
@@ -244,11 +253,10 @@ class Board:
             aiMove = findMinimax(self, tracing)
             self.nbr_cards += 1
             Card.id_count += 1
-            return self.swap_card_direct(aiMove) if isinstance(aiMove, RecyclingMove) else self.insert_card_direct(aiMove[0], aiMove[1])
+            return self.swap_card_direct(aiMove) if isinstance(aiMove, RecyclingMove) else self.insert_card_direct(aiMove)
 
-    def remove_card(self, new_card, position):
-
-        position_first_tile, position_second_tile = new_card.get_tile_positions(position)
+    def remove_card(self, regular_move):
+        position_first_tile, position_second_tile = regular_move.new_card.get_tile_positions(regular_move.position)
         self.board[position_first_tile[1]][position_first_tile[0]] = ' ' * 4
         self.board[position_second_tile[1]][position_second_tile[0]] = ' ' * 4
 
@@ -287,7 +295,7 @@ class Board:
     def ask_for_input(self, player):
         inserted_tiles_pos = None
         while inserted_tiles_pos is None:
-            inserted_tiles_pos = self.read_input(input(player + ", please enter coordinates: "))
+            inserted_tiles_pos = self.read_input(input(player + ", please enter " + ("a recycling move" if self.isInRecyclingPhase() else "a regular move") + ": "))
         return inserted_tiles_pos
 
     def read_input(self, input_std):
@@ -391,16 +399,18 @@ class Board:
         return [recyclingMove.position_first_tile, recyclingMove.position_second_tile]
 
     def swap_card_direct(self, recyclingMove):
+        recyclingMove.card_to_swap.update_rotation_code(recyclingMove.new_rot_code)
         self.board[recyclingMove.position_card_1st_tile[1]][recyclingMove.position_card_1st_tile[0]] = ' ' * 4
         self.board[recyclingMove.position_card_2nd_tile[1]][recyclingMove.position_card_2nd_tile[0]] = ' ' * 4
-        self.board[recyclingMove.position_first_tile[1]][recyclingMove.position_first_tile[0]] = recyclingMove.new_card.activeSide.tile1
-        self.board[recyclingMove.position_second_tile[1]][recyclingMove.position_second_tile[0]] = recyclingMove.new_card.activeSide.tile2
+        self.board[recyclingMove.position_first_tile[1]][recyclingMove.position_first_tile[0]] = recyclingMove.card_to_swap.activeSide.tile1
+        self.board[recyclingMove.position_second_tile[1]][recyclingMove.position_second_tile[0]] = recyclingMove.card_to_swap.activeSide.tile2
         return [recyclingMove.position_first_tile, recyclingMove.position_second_tile]
 
     # Method used to "cancel" a recycling move
     def put_back_card_direct(self, recyclingMove):
-        self.board[recyclingMove.position_card_1st_tile[1]][recyclingMove.position_card_1st_tile[0]] = recyclingMove.new_card.activeSide.tile1
-        self.board[recyclingMove.position_card_2nd_tile[1]][recyclingMove.position_card_2nd_tile[0]] = recyclingMove.new_card.activeSide.tile2
+        recyclingMove.card_to_swap.update_rotation_code(recyclingMove.old_rot_code)
+        self.board[recyclingMove.position_card_1st_tile[1]][recyclingMove.position_card_1st_tile[0]] = recyclingMove.card_to_swap.activeSide.tile1
+        self.board[recyclingMove.position_card_2nd_tile[1]][recyclingMove.position_card_2nd_tile[0]] = recyclingMove.card_to_swap.activeSide.tile2
         self.board[recyclingMove.position_first_tile[1]][recyclingMove.position_first_tile[0]] = ' ' * 4
         self.board[recyclingMove.position_second_tile[1]][recyclingMove.position_second_tile[0]] = ' ' * 4
 
@@ -412,12 +422,12 @@ class Board:
             return None
 
         # Check if the card has the same rotation code and a different location, to be a legal recycle move
-        if not(card_1st_tile.rotationCode == input_rot_code and position_new_card[0] == min(position_card_1st_tile[0], position_card_2nd_tile[0])
+        if not(card_1st_tile.cardOwner.rotationCode == input_rot_code and position_new_card[0] == min(position_card_1st_tile[0], position_card_2nd_tile[0])
                and position_new_card[1] == min(position_card_1st_tile[1], position_card_2nd_tile[1])):
             self.board[position_card_1st_tile[1]][position_card_1st_tile[0]] = ' ' * 4
             self.board[position_card_2nd_tile[1]][position_card_2nd_tile[0]] = ' ' * 4
             old_rot_code_cache = card_to_swap.rotationCode
-            card_to_swap.rotationCode = input_rot_code
+            card_to_swap.update_rotation_code(input_rot_code)
             position_first_tile, position_second_tile = card_to_swap.get_tile_positions(position_new_card)
 
             # The new position is tested for legality. Place the card back before returning,
@@ -426,20 +436,21 @@ class Board:
                 print("The location where you want to place your recycled card is not valid.")
                 self.board[position_card_1st_tile[1]][position_card_1st_tile[0]] = card_1st_tile
                 self.board[position_card_2nd_tile[1]][position_card_2nd_tile[0]] = card_2nd_tile
-                card_to_swap.rotationCode = old_rot_code_cache
+                card_to_swap.update_rotation_code(old_rot_code_cache)
                 return None
             self.board[position_card_1st_tile[1]][position_card_1st_tile[0]] = card_1st_tile
             self.board[position_card_2nd_tile[1]][position_card_2nd_tile[0]] = card_2nd_tile
-            card_to_swap.rotationCode = old_rot_code_cache
-            return RecyclingMove(card_to_swap, position_card_1st_tile, position_card_2nd_tile,
-                                    position_first_tile, position_second_tile)
+            card_to_swap.update_rotation_code(old_rot_code_cache)
+            return RecyclingMove(card_to_swap, old_rot_code_cache, input_rot_code,
+                                 position_card_1st_tile, position_card_2nd_tile,
+                                 position_first_tile, position_second_tile)
 
         print("You cannot keep the same rotation and position.")
         return None
 
     def insert_card(self, input_args):
         """ Tries to insert card into the board from the inputArgs given by player.
-            If it was successful in inserting it, it increments self.nbrCards by 1 and returns the newCard.
+            If it was successful in inserting it, it increments self.nbrCards by 1 and returns the new_card.
             Otherwise, it returns None.
         """
         # Ensure that an exception is thrown when we try to exceed the max number of cards to indicate failure
@@ -477,10 +488,11 @@ class Board:
 
         return [position_new_card, position_second_tile]
 
-    def insert_card_direct(self, new_card, position):
-        position_first_tile, position_second_tile = new_card.get_tile_positions(position)
-        self.board[position_first_tile[1]][position_first_tile[0]] = new_card.activeSide.tile1
-        self.board[position_second_tile[1]][position_second_tile[0]] = new_card.activeSide.tile2
+    def insert_card_direct(self, regular_move):
+        regular_move.new_card.update_rotation_code(regular_move.rotation_code)
+        position_first_tile, position_second_tile = regular_move.new_card.get_tile_positions(regular_move.position)
+        self.board[position_first_tile[1]][position_first_tile[0]] = regular_move.new_card.activeSide.tile1
+        self.board[position_second_tile[1]][position_second_tile[0]] = regular_move.new_card.activeSide.tile2
         return (position_first_tile, position_second_tile)
 
     def check_four_consecutive(self, tile_pos, offset, type_item):
@@ -547,7 +559,7 @@ class Board:
                 return False
             # Since we checked conditions 1, 2 and 3b, the card location is valid.
             return True
-        else:  # if newCard.orientation == Card.Orientation.up or newCard.orientation == Card.Orientation.down:
+        else:  # if new_card.orientation == Card.Orientation.up or new_card.orientation == Card.Orientation.down:
             tile_location_under_y = min(tile_1_location[1], tile_2_location[1]) - 1
             if not isinstance(self.board[tile_location_under_y][tile_1_location[0]], Tile):
                 print("Error: The card would hang over an empty cell, which is not allowed.")
@@ -652,17 +664,18 @@ class Board:
 
     def generate_valid_recycling_moves_for_card(self, card, cardLocations, valid_tile_locations):
         recycling_moves = list()
-        for newCardLocation in valid_tile_locations:
-            for rotationCode in self.get_rotation_codes():
+        for new_card_location in valid_tile_locations:
+            for rotation_code in self.get_rotation_codes():
                 potential_valid_recycling_move = \
-                    self.get_valid_recycling_move(card, card.activeSide.tile1, card.activeSide.tile2, rotationCode,
-                                                  newCardLocation, cardLocations[0], cardLocations[1])
+                    self.get_valid_recycling_move(card, card.activeSide.tile1, card.activeSide.tile2, rotation_code,
+                                                  new_card_location, cardLocations[0], cardLocations[1])
                 if potential_valid_recycling_move is not None:
                     recycling_moves.append(potential_valid_recycling_move)
         return recycling_moves
 
     def generate_valid_regular_moves(self):
         valid_regular_moves = list()
+        new_card = Card(1) # We pass rotation_code but we are supposed to update the rotationCode later
         # For all rows on the board, search upwards through the corresponding column
         # in order to find the first empty tile.
         for i in range(0, self.DIMENSIONS_X_Y[0]):
@@ -673,15 +686,21 @@ class Board:
                     # If we are checking the very last column, then there is no need to check the "horizontal" moves
                     #  => they are invalid for sure.
                     if i == self.DIMENSIONS_X_Y[0] - 1:
-                        potential_valid_moves = self.generate_valid_regular_moves_from_pos_and_rot_codes((i, j),
+                        potential_valid_moves = self.generate_valid_regular_moves_from_pos_and_rot_codes(
+                                                                        new_card,
+                                                                        (i, j),
                                                                         self.get_vertical_rotation_codes())
                     # Similar logic applies to the very top row, the "vertical" moves
                     # are guaranteed to be invalid.
                     elif j == self.DIMENSIONS_X_Y[1] - 1:
-                        potential_valid_moves = self.generate_valid_regular_moves_from_pos_and_rot_codes((i, j),
+                        potential_valid_moves = self.generate_valid_regular_moves_from_pos_and_rot_codes(
+                                                                        new_card,
+                                                                        (i, j),
                                                                         self.get_horizontal_rotation_codes())
                     else:
-                        potential_valid_moves = self.generate_valid_regular_moves_from_pos_and_rot_codes((i, j),
+                        potential_valid_moves = self.generate_valid_regular_moves_from_pos_and_rot_codes(
+                                                                        new_card,
+                                                                        (i, j),
                                                                         self.get_rotation_codes())
                     if potential_valid_moves is not None:
                         valid_regular_moves.extend(potential_valid_moves)
@@ -689,19 +708,19 @@ class Board:
                     break
         return valid_regular_moves
 
-    def generate_valid_regular_moves_from_pos_and_rot_codes(self, position, rotation_codes):
+    def generate_valid_regular_moves_from_pos_and_rot_codes(self, new_card, position, rotation_codes):
         regular_moves = []
         for rotation_code in rotation_codes:
-            potential_regular_move = self.try_insert_card_in_new_board_AI(position, rotation_code)
+            potential_regular_move = self.try_insert_card_in_new_board_AI(new_card, position, rotation_code)
             if potential_regular_move is not None:
                 regular_moves.append(potential_regular_move)
         return regular_moves
 
-    def try_insert_card_in_new_board_AI(self, position, rotation_code):
-        new_card = Card(rotation_code)
+    def try_insert_card_in_new_board_AI(self, new_card, position, rotation_code):
+        new_card.update_rotation_code(rotation_code)
         position_first_tile, position_second_tile = new_card.get_tile_positions(position)
         if self.card_location_is_valid_spot(position_first_tile, position_second_tile, new_card):
-            return new_card, position
+            return RegularMove(new_card, position, rotation_code)
         else:
             return None
 
