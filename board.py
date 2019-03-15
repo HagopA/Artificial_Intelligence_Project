@@ -58,8 +58,8 @@ def findMinimax(board, tracing):
             # Restore the swapped card
             board.put_back_card_direct(recycling_move)
     else:
-        for recycling_move in board.generate_valid_regular_moves():
-            board.insert_card_direct(recycling_move[0], recycling_move[1])
+        for regular_move in board.generate_valid_regular_moves():
+            board.insert_card_direct(regular_move[0], regular_move[1])
             level2Heuristic = 1000000
             for level3move in board.generate_valid_regular_moves():
                 board.insert_card_direct(level3move[0], level3move[1])
@@ -70,8 +70,8 @@ def findMinimax(board, tracing):
                 level3Nodes += 1
             if level2Heuristic == 1000000:
                 level2Heuristic = board.heuristic_regular_moves()
-            level2Array.append([level2Heuristic, recycling_move])
-            board.remove_card(recycling_move[0], recycling_move[1])
+            level2Array.append([level2Heuristic, regular_move])
+            board.remove_card(regular_move[0], regular_move[1])
 
     chosenHeuristic = level2Array[0][0]
     moveChosen = level2Array[0][1]
@@ -103,11 +103,10 @@ class Tile:
         filled = 'F'
         empty = 'E'
 
-    def __init__(self, color, dotState, cardOwner, rotationCode):
+    def __init__(self, color, dotState, cardOwner):
         self.color = color
         self.dotState = dotState
         self.cardOwner = cardOwner
-        self.rotationCode = rotationCode
 
     def get_item_key(self, type_item):
         if type_item == Tile.Color:
@@ -144,15 +143,15 @@ class Card:
     # please do not call self.id_count but Card.id_count instead whenever you want to modify the value of the variable.
     id_count = 0
 
-    def __init__(self, rotation_code=1, id=-1):
-        if id == -1:
-            self.id = Card.id_count
-        else:
-            self.id = id
-        self.side1 = Side(Tile(Tile.Color.red, Tile.DotState.filled, self, rotation_code),
-                          Tile(Tile.Color.white, Tile.DotState.empty, self, rotation_code))
-        self.side2 = Side(Tile(Tile.Color.red, Tile.DotState.empty, self, rotation_code),
-                          Tile(Tile.Color.white, Tile.DotState.filled, self, rotation_code))
+    def __init__(self, rotation_code=1):
+        self.id = Card.id_count
+        self.side1 = Side(Tile(Tile.Color.red, Tile.DotState.filled, self),
+                          Tile(Tile.Color.white, Tile.DotState.empty, self))
+        self.side2 = Side(Tile(Tile.Color.red, Tile.DotState.empty, self),
+                          Tile(Tile.Color.white, Tile.DotState.filled, self))
+        self.update_rotation_code(rotation_code)
+
+    def update_rotation_code(self, rotation_code):
         self.rotationCode = rotation_code
         if self.rotationCode <= self.NBR_ROTATION_CODES / 2:
             self.activeSide = self.side1
@@ -160,10 +159,6 @@ class Card:
         else:
             self.activeSide = self.side2
             self.orientation = self.Orientation(self.rotationCode - self.NBR_ROTATION_CODES / 2)
-        if id == -1:
-            self.id = Card.id_count
-        else:
-            self.id = id
 
     def get_tile_positions(self, position):
         if self.orientation == self.Orientation.right:
@@ -384,8 +379,11 @@ class Board:
 
         recyclingMove = self.get_valid_recycling_move(card_to_swap, card_1st_tile, card_2nd_tile, input_rot_code, position_new_card,
                                                       position_card_1st_tile, position_card_2nd_tile)
-        if recyclingMove is not None:
-            self.swap_card_direct(recyclingMove)
+        if recyclingMove is None:
+            print ("This is not a valid recycling move")
+            return None
+
+        self.swap_card_direct(recyclingMove)
 
         # Make sure the same card can't be recycled twice
         self.recycled_card = card_to_swap
