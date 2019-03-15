@@ -116,8 +116,6 @@ class Tile:
             return self.dotState
 
     def __str__(self):
-        if isinstance(self.cardOwner.id, Card):
-            print ("allo")
         # Note: We assume there is no more than 99 different ids
         return self.color.value + self.dotState.value + "%-2d" % self.cardOwner.id
 
@@ -206,10 +204,10 @@ class Board:
         # NOTE: Initially, the board is empty (no cards on it), so no tiles are on it either.
         # We illustrate a location on the board with no tile/card as a string (blank spaces).
         self.board = [[' ' * 4 for x in range(self.DIMENSIONS_X_Y[0])] for y in range(self.DIMENSIONS_X_Y[1])]
-        self.nbrCards = 0
+        self.nbr_cards = 0
         # There is at most maxNbrCards cards on the board and we have to ensure no one can insert cards (through the
         # methods we provide) when we reach that quota.
-        self.maxNbrCards = max_nbr_cards
+        self.max_nbr_cards = max_nbr_cards
         self.recycled_card = 23
 
     # Looping through the board
@@ -249,7 +247,7 @@ class Board:
     def ai_move(self, tracing):
         with TogglePrintingOffGuard():
             aiMove = findMinimax(self, tracing)
-            self.nbrCards += 1
+            self.nbr_cards += 1
             Card.id_count += 1
             return self.swap_card_direct(aiMove) if isinstance(aiMove, RecyclingMove) else self.insert_card_direct(aiMove[0], aiMove[1])
 
@@ -323,7 +321,7 @@ class Board:
     def swap_card(self, args):
         # Check if you should recycle on this turn
         if not self.isInRecyclingPhase():
-            print("Error: Cannot do a recycling move until " + str(self.maxNbrCards) + " cards are on the board.\n" \
+            print("Error: Cannot do a recycling move until " + str(self.max_nbr_cards) + " cards are on the board.\n" \
                                                                                   "Please do a normal move instead.")
             return None
 
@@ -350,6 +348,8 @@ class Board:
         if card_1st_tile.cardOwner != card_2nd_tile.cardOwner:
             print("The 2 tiles selected do not come from the same card. Choose 2 tiles from the same card.")
             return None
+        # Otherwise, we ensured the identity of the card needing to be swapped
+        card_to_swap = card_1st_tile.cardOwner
 
         # Checks to see if there is a tile used over the chosen card, so that the board won't become illegal
         if position_card_2nd_tile[0] == position_card_1st_tile[0]:
@@ -360,8 +360,7 @@ class Board:
                 return None
         elif isinstance(self.board[position_card_1st_tile[1] + 1][position_card_1st_tile[0]], Tile) or isinstance(
                 self.board[position_card_2nd_tile[1] + 1][position_card_2nd_tile[0]], Tile):
-            print(
-                "You cannot move this card, it would leave the board in an illegal state. Please choose another card.")
+            print("You cannot move this card, it would leave the board in an illegal state. Please choose another card.")
             return None
 
         # Checks that the 5th argument is a rotation code
@@ -383,15 +382,15 @@ class Board:
             return None
 
 
-        recyclingMove = self.get_valid_recycling_move(card_1st_tile, card_2nd_tile, input_rot_code, position_new_card,
+        recyclingMove = self.get_valid_recycling_move(card_to_swap, card_1st_tile, card_2nd_tile, input_rot_code, position_new_card,
                                                       position_card_1st_tile, position_card_2nd_tile)
         if recyclingMove is not None:
             self.swap_card_direct(recyclingMove)
 
         # Make sure the same card can't be recycled twice
-        self.recycled_card = card_1st_tile.cardOwner
+        self.recycled_card = card_to_swap
 
-        return [position_first_tile, position_second_tile]
+        return [recyclingMove.position_first_tile, recyclingMove.position_second_tile]
 
     def swap_card_direct(self, recyclingMove):
         self.board[recyclingMove.position_card_1st_tile[1]][recyclingMove.position_card_1st_tile[0]] = ' ' * 4
@@ -407,10 +406,10 @@ class Board:
         self.board[recyclingMove.position_first_tile[1]][recyclingMove.position_first_tile[0]] = ' ' * 4
         self.board[recyclingMove.position_second_tile[1]][recyclingMove.position_second_tile[0]] = ' ' * 4
 
-    def get_valid_recycling_move(self, card_1st_tile, card_2nd_tile, input_rot_code, position_new_card,
+    def get_valid_recycling_move(self, card_to_swap, card_1st_tile, card_2nd_tile, input_rot_code, position_new_card,
                                  position_card_1st_tile, position_card_2nd_tile):
-        # Makes sure the last card used isn't the one being played now
-        if card_1st_tile.cardOwner == self.recycled_card:
+        # Makes sure the last card used isn't the one being played/swapped now
+        if card_to_swap == self.recycled_card:
             print("You cannot move the card that was moved/played last turn. Please choose another card.")
             return None
 
@@ -419,20 +418,22 @@ class Board:
                and position_new_card[1] == min(position_card_1st_tile[1], position_card_2nd_tile[1])):
             self.board[position_card_1st_tile[1]][position_card_1st_tile[0]] = ' ' * 4
             self.board[position_card_2nd_tile[1]][position_card_2nd_tile[0]] = ' ' * 4
-            new_card = Card(input_rot_code)
-            position_first_tile, position_second_tile = new_card.get_tile_positions(position_new_card)
+            old_rot_code_cache = card_to_swap.rotationCode
+            card_to_swap.rotationCode = input_rot_code
+            position_first_tile, position_second_tile = card_to_swap.get_tile_positions(position_new_card)
 
             # The new position is tested for legality. Place the card back before returning,
             # whether it is an illegal move or not.
-            if not self.card_location_is_valid_spot(position_first_tile, position_second_tile, new_card):
+            if not self.card_location_is_valid_spot(position_first_tile, position_second_tile, card_to_swap):
                 print("The location where you want to place your recycled card is not valid.")
                 self.board[position_card_1st_tile[1]][position_card_1st_tile[0]] = card_1st_tile
                 self.board[position_card_2nd_tile[1]][position_card_2nd_tile[0]] = card_2nd_tile
+                card_to_swap.rotationCode = old_rot_code_cache
                 return None
             self.board[position_card_1st_tile[1]][position_card_1st_tile[0]] = card_1st_tile
             self.board[position_card_2nd_tile[1]][position_card_2nd_tile[0]] = card_2nd_tile
-
-            return RecyclingMove(new_card, position_card_1st_tile, position_card_2nd_tile,
+            card_to_swap.rotationCode = old_rot_code_cache
+            return RecyclingMove(card_to_swap, position_card_1st_tile, position_card_2nd_tile,
                                     position_first_tile, position_second_tile)
 
         print("You cannot keep the same rotation and position.")
@@ -444,8 +445,8 @@ class Board:
             Otherwise, it returns None.
         """
         # Ensure that an exception is thrown when we try to exceed the max number of cards to indicate failure
-        if self.nbrCards >= self.maxNbrCards:
-            print("Error: Cannot insert more than " + str(self.maxNbrCards) + " cards on the board.\nPlease do a recycling "
+        if self.nbr_cards >= self.max_nbr_cards:
+            print("Error: Cannot insert more than " + str(self.max_nbr_cards) + " cards on the board.\nPlease do a recycling "
                                                                          "move instead.")
             return None
         try:
@@ -473,7 +474,7 @@ class Board:
         self.board[position_first_tile[1]][position_first_tile[0]] = new_card.activeSide.tile1
         self.board[position_second_tile[1]][position_second_tile[0]] = new_card.activeSide.tile2
 
-        self.nbrCards += 1
+        self.nbr_cards += 1
         Card.id_count += 1
 
         return [position_new_card, position_second_tile]
@@ -608,11 +609,11 @@ class Board:
                 # or the very top of the board), then generate valid recycling moves that involve swapping it out.
                 if isinstance(self.board[j][i], Tile) and \
                         (((j+1) == self.DIMENSIONS_X_Y[1]) or not isinstance(self.board[j + 1][i], Tile)):
-                    cardToRecycle = self.board[j][i].cardOwner
+                    card_to_recycle = self.board[j][i].cardOwner
                     # If we already checked the valid moves of that card, we can ignore it.
-                    if cardToRecycle != cardOwnerPreviousTile:
-                        cards_recycled_and_locations[cardToRecycle] = ((i, j), self.find_location_other_tile_of_card(cardToRecycle, (i, j)))
-                    cardOwnerPreviousTile = cardToRecycle
+                    if card_to_recycle != cardOwnerPreviousTile:
+                        cards_recycled_and_locations[card_to_recycle] = ((i, j), self.find_location_other_tile_of_card(card_to_recycle, (i, j)))
+                    cardOwnerPreviousTile = card_to_recycle
                     # If the tile above the current one is not out of bounds, then
                     # we assume that it is a valid tile location, since it is, by definition, the
                     # first empty tile we encounter going upwards.
@@ -656,7 +657,7 @@ class Board:
         for newCardLocation in valid_tile_locations:
             for rotationCode in self.get_rotation_codes():
                 potential_valid_recycling_move = \
-                    self.get_valid_recycling_move(card.activeSide.tile1, card.activeSide.tile2, rotationCode,
+                    self.get_valid_recycling_move(card, card.activeSide.tile1, card.activeSide.tile2, rotationCode,
                                                   newCardLocation, cardLocations[0], cardLocations[1])
                 if potential_valid_recycling_move is not None:
                     recycling_moves.append(potential_valid_recycling_move)
@@ -709,7 +710,7 @@ class Board:
     def isInRecyclingPhase(self):
         # Returns whether or not the players have entered the recycling phase, meaning that only recycling moves
         # will be allowed from now on. This happens when all cards are placed on the board.
-        return self.nbrCards >= self.maxNbrCards
+        return self.nbr_cards >= self.max_nbr_cards
 
     def __str__(self):
         output_str = '\n'
@@ -853,7 +854,7 @@ def game_loop():
         else:
             inserted_tiles_pos = b.ask_for_input(current_player.name)
         print(b)
-        if b.nbrCards >= 4:
+        if b.nbr_cards >= 4:
             # Even if the other player wins at the same time as the current player, the current player has
             # the priority.
             # (i.e. The current players wins even if both players won simultaneously,
