@@ -22,7 +22,7 @@ def add_tuples(tuple1, tuple2):
 def get_negative_tuple(tupleVar):
     return tuple(-x for x in tupleVar)
 
-def all_values_positive(col1, row1, col2, row2):
+def all_values_positive(col1, row1, col2 = 1, row2 = 1):
     if col1 < 0 or row1 < 0 or col2 < 0 or row2 < 0:
         return False
     if col1 > Board.DIMENSIONS_X_Y[0] - 1 or row1 > Board.DIMENSIONS_X_Y[1] - 1 or col2 > Board.DIMENSIONS_X_Y[0] - 1 or row2 > Board.DIMENSIONS_X_Y[1] - 1:
@@ -41,12 +41,17 @@ class RecyclingMove:
         self.position_second_tile = position_second_tile
 
 class RegularMove:
-    def __init__(self, new_card, position, rotation_code):
+    def __init__(self, new_card, position_first_tile, position_second_tile, rotation_code):
         self.new_card = new_card
-        self.position = position
+        self.position_first_tile = position_first_tile
+        self.position_second_tile = position_second_tile
         self.rotation_code = rotation_code
 
-def findMinimax(board, tracing):
+def findMinimax(board, tracing, current_player):
+    # Stores all possible level 2 moves after checking the level 3 moves that can result from them
+    # and finding the one with the minimal heuristic.
+    # The array is made up of tuples (heuristic, corresponding_heuristic)
+    # We will iterate through this array until we find the move with the biggest heuristic as our next move.
     level2Array = []
     level3Nodes = 0
 
@@ -63,23 +68,29 @@ def findMinimax(board, tracing):
                 level3Nodes += 1
             if level2Heuristic == 1000000:
                 level2Heuristic = board.heuristic_recycling_moves()
-            level2Array.append([level2Heuristic, recycling_move])
+            level2Array.append((level2Heuristic, recycling_move))
             # Restore the swapped card
             board.put_back_card_direct(recycling_move)
     else:
+        # Generating the next moves we can do from the current state of the board.
+        # Temporarily insert cards to it to check the heuristic cost of each move.
         for regular_move in board.generate_valid_regular_moves():
             board.insert_card_direct(regular_move)
             level2Heuristic = 1000000
+            # Again, generating next moves, the ones min is to play. Temporarily insert cards to the board.
+            # Find the move with the smallest heuristic since min is playing.
             for level3move in board.generate_valid_regular_moves():
                 board.insert_card_direct(level3move)
-                level3Heuristic = board.heuristic_regular_moves()
+                level3Heuristic = board.heuristic_regular_moves(level3move, current_player)
                 if level3Heuristic < level2Heuristic:
                     level2Heuristic = level3Heuristic
                 board.remove_card(level3move)
                 level3Nodes += 1
             if level2Heuristic == 1000000:
-                level2Heuristic = board.heuristic_regular_moves()
-            level2Array.append([level2Heuristic, regular_move])
+                level2Heuristic = board.heuristic_regular_moves(regular_move, current_player)
+            # We found the smallest heuristic cost out of all the level 3 moves.
+            # We can append the level 2 move and its smallest resulting heuristic (since min is playing next)
+            level2Array.append((level2Heuristic, regular_move))
             board.remove_card(regular_move)
 
     chosenHeuristic = level2Array[0][0]
@@ -218,7 +229,7 @@ class Board:
     # For all coordinates with a card placed on it, we determine if it's red/white and empty/filled
     # The coordinate is also used to find the positions 'weight' using the dict above
     # Based on the formula, the evaluation function is calculated
-    def heuristic_regular_moves(self):
+    def bad_heuristic_regular_moves_iteration_2(self):
         sum_empty_white = 0
         sum_full_white = 0
         sum_full_red = 0
@@ -242,23 +253,30 @@ class Board:
         evaluation_func = sum_empty_white + 3 * sum_full_white - 2 * sum_empty_red - 1.5 * sum_full_red
         return evaluation_func
 
+    def heuristic_regular_moves(self, regular_move, current_player):
+        h_cost = 0
+        enemy_player_type_item = Tile.DotState if current_player.typeItem == Tile.Color else Tile.Color
+        h_cost += self.get_max_nbr_matching_tiles([regular_move.position_first_tile, regular_move.position_second_tile], current_player.typeItem)\
+            - self.get_max_nbr_matching_tiles([regular_move.position_first_tile, regular_move.position_second_tile], enemy_player_type_item)
+        #h_cost -= self.get_max_nbr_blocked_tiles([regular_move.position_first_tile, regular_move.position_second_tile], current_player.typeItem)
+        return h_cost
+
     # Since the number of possible moves during the recycling phase and the regular phase are different,
     # the heuristic should be different as well (less costly when in recycling phase)
     def heuristic_recycling_moves(self):
         # For iteration 2, we use the same naive heuristic for both recyling moves and regular moves.
-        return self.heuristic_regular_moves()
+        return self.bad_heuristic_regular_moves_iteration_2()
 
-    def ai_move(self, tracing):
+    def ai_move(self, tracing, current_player):
         with TogglePrintingOffGuard():
-            aiMove = findMinimax(self, tracing)
+            aiMove = findMinimax(self, tracing, current_player)
             self.nbr_cards += 1
             Card.id_count += 1
             return self.swap_card_direct(aiMove) if isinstance(aiMove, RecyclingMove) else self.insert_card_direct(aiMove)
 
     def remove_card(self, regular_move):
-        position_first_tile, position_second_tile = regular_move.new_card.get_tile_positions(regular_move.position)
-        self.board[position_first_tile[1]][position_first_tile[0]] = ' ' * 4
-        self.board[position_second_tile[1]][position_second_tile[0]] = ' ' * 4
+        self.board[regular_move.position_first_tile[1]][regular_move.position_first_tile[0]] = ' ' * 4
+        self.board[regular_move.position_second_tile[1]][regular_move.position_second_tile[0]] = ' ' * 4
 
     def convert_coordinate(self, letter_num_coordinate):
         """ Convert a coordinate in the form [A-Z] [0-9] (eg. A 2) (given as a tuple)
@@ -303,6 +321,7 @@ class Board:
             Return true if we were able to successfully and false otherwise.
         """
         args = input_std.split()
+        print (args)
         if len(args) == 0:
             print("Enter a move.")
             return None
@@ -490,30 +509,9 @@ class Board:
 
     def insert_card_direct(self, regular_move):
         regular_move.new_card.update_rotation_code(regular_move.rotation_code)
-        position_first_tile, position_second_tile = regular_move.new_card.get_tile_positions(regular_move.position)
-        self.board[position_first_tile[1]][position_first_tile[0]] = regular_move.new_card.activeSide.tile1
-        self.board[position_second_tile[1]][position_second_tile[0]] = regular_move.new_card.activeSide.tile2
-        return (position_first_tile, position_second_tile)
-
-    def check_four_consecutive(self, tile_pos, offset, type_item):
-        """ Check whether or not there are 4 consecutive tiles with the same state of the type item
-            from tilePos in the direction of the offset (offset can be seen as a normalized direction vector).
-        """
-        nbr_consecutives = 1
-        current_pos = tile_pos
-        while nbr_consecutives < 4:
-            next_pos = add_tuples(current_pos, offset)
-            if not all_values_positive(next_pos[0], next_pos[1], current_pos[0], current_pos[1]):
-                return False
-            if isinstance(self.board[tile_pos[1]][tile_pos[0]], Tile) \
-                and isinstance(self.board[next_pos[1]][next_pos[0]], Tile) \
-                and self.board[tile_pos[1]][tile_pos[0]].get_item_key(type_item) == \
-                    self.board[next_pos[1]][next_pos[0]].get_item_key(type_item):
-                    nbr_consecutives += 1
-            else:
-                break
-            current_pos = next_pos
-        return nbr_consecutives >= 4
+        self.board[regular_move.position_first_tile[1]][regular_move.position_first_tile[0]] = regular_move.new_card.activeSide.tile1
+        self.board[regular_move.position_second_tile[1]][regular_move.position_second_tile[0]] = regular_move.new_card.activeSide.tile2
+        return (regular_move.position_first_tile, regular_move.position_second_tile)
 
     def card_location_is_valid_spot(self, tile_1_location, tile_2_location, new_card):
         """ Return whether or not the given location in the 2d-dimensional array is valid.
@@ -567,43 +565,99 @@ class Board:
             # Since we checked conditions 1, 2 and 3b, the card location is valid.
             return True
 
-    def check_win_conditions(self, insert_tiles_pos, type_item):
-        offsets = [(0, 1), (1, 0), (1, 1), (1, -1)]
-        for tilePos in insert_tiles_pos:
+    def check_win_conditions(self, inserted_tiles_pos, type_item):
+        if type_item == Tile.Color:
+            types = (Tile.Color.white, Tile.Color.red)
+        else:
+            types = (Tile.DotState.empty, Tile.DotState.filled)
+        offsets = [(0, -1), (1, 0), (1, 1), (1, -1)]
+        for tile_pos in inserted_tiles_pos:
             for offset in offsets:
-                if self.check_four_consecutive(tilePos, offset, type_item):
-                    return True
+                for type in types:
+                    if self.get_nbr_matching_tiles(tile_pos, offset, type, type_item) >= 4:
+                        return True
         return False
 
-    @toggle_printing_off_decorator
-    def check_four_consecutive(self, tile_pos, offset, type_item):
+    def get_max_nbr_matching_tiles(self, inserted_tiles_pos, type_item):
+        if type_item == Tile.Color:
+            types = (Tile.Color.white, Tile.Color.red)
+        else:
+            types = (Tile.DotState.empty, Tile.DotState.filled)
+        offsets = [(0, 1), (1, 0), (1, 1), (1, -1)]
+        max_nbr_matching_tiles = 0
+        for tile_pos in inserted_tiles_pos:
+            for offset in offsets:
+                for type in types:
+                    nbr_matching_tiles = self.get_nbr_matching_tiles(tile_pos, offset, type, type_item)
+                    if nbr_matching_tiles > max_nbr_matching_tiles:
+                        max_nbr_matching_tiles = nbr_matching_tiles
+        return max_nbr_matching_tiles
+
+    def get_max_nbr_blocked_tiles(self, inserted_tiles_pos, type_item):
+        if type_item == Tile.Color:
+            types = (Tile.Color.white, Tile.Color.red)
+        else:
+            types = (Tile.DotState.empty, Tile.DotState.filled)
+        offsets = [(0, 1), (1, 0), (1, 1), (1, -1)]
+        max_nbr_blocked_tiles = 0
+        for tile_pos in inserted_tiles_pos:
+            for offset in offsets:
+                for type in types:
+                    nbr_blocked_tiles = self.get_nbr_blocked_tiles(tile_pos, offset, type, type_item)
+                    if nbr_blocked_tiles > max_nbr_blocked_tiles:
+                        max_nbr_blocked_tiles = nbr_blocked_tiles
+
+    def get_nbr_blocked_tiles(self, tile_pos, offset, type, type_item):
         """ Check whether or not there are 4 consecutive tiles with the same state of the type item
             from tilePos in the direction of the offset (offset can be seen as a normalized direction vector).
         """
-        nbr_consecutives = 1 + self.get_nbr_matching_tiles_in_offset_direction(tile_pos, offset, type_item)
+        # If the current checked tile is not even of the same type as the one seeked, we should not even
+        # check matching tiles.
+        if self.board[tile_pos[1]][tile_pos[0]].get_item_key(type_item) != type:
+            return 0
+        #print("offset: ", offset, "  tile_pos: ", tile_pos, "  type: ", type, "  type_item: ", type_item)
+        nbr_consecutives = 1 + self.get_nbr_matching_tiles_in_offset_direction(tile_pos, offset, type, type_item)
         # We never need to check the direction directly up from the inserted tile (offset (1, 1)) because it is
         # impossible to find a match in that direction.
         # If the number of consecutive tiles found is smaller than 4, then search in the opposite direction
-        if offset != (-1, -1) and nbr_consecutives < 4:
+        if offset != (0, -1) and nbr_consecutives < 4:
             opposite_direction_offset = get_negative_tuple(offset)
             nbr_consecutives += self.get_nbr_matching_tiles_in_offset_direction(
-                                                            tile_pos, opposite_direction_offset, type_item)
-        return nbr_consecutives >= 4
+                                                            tile_pos, opposite_direction_offset, type, type_item)
+        #print ("nbr_consecutives: ", nbr_consecutives)
+        return nbr_consecutives
 
-    def get_nbr_matching_tiles_in_offset_direction(self, tile_pos, offset, type_item):
+    def get_nbr_matching_tiles(self, tile_pos, offset, type, type_item):
+        """ Check whether or not there are 4 consecutive tiles with the same state of the type item
+            from tilePos in the direction of the offset (offset can be seen as a normalized direction vector).
+        """
+        # If the current checked tile is not even of the same type as the one seeked, we should not even
+        # check matching tiles.
+        if self.board[tile_pos[1]][tile_pos[0]].get_item_key(type_item) != type:
+            return 0
+        #print("offset: ", offset, "  tile_pos: ", tile_pos, "  type: ", type, "  type_item: ", type_item)
+        nbr_consecutives = 1 + self.get_nbr_matching_tiles_in_offset_direction(tile_pos, offset, type, type_item)
+        # We never need to check the direction directly up from the inserted tile (offset (1, 1)) because it is
+        # impossible to find a match in that direction.
+        # If the number of consecutive tiles found is smaller than 4, then search in the opposite direction
+        if offset != (0, -1) and nbr_consecutives < 4:
+            opposite_direction_offset = get_negative_tuple(offset)
+            nbr_consecutives += self.get_nbr_matching_tiles_in_offset_direction(
+                                                            tile_pos, opposite_direction_offset, type, type_item)
+        #print ("nbr_consecutives: ", nbr_consecutives)
+        return nbr_consecutives
+
+    def get_nbr_matching_tiles_in_offset_direction(self, tile_pos, offset, type, type_item):
         nbr_consecutives = 0
         current_pos = tile_pos
         while nbr_consecutives < 4:
-            next_pos = add_tuples(current_pos, offset)
-            if all_values_positive(next_pos[0], next_pos[1], current_pos[0], current_pos[1]) and \
-                    isinstance(self.board[tile_pos[1]][tile_pos[0]], Tile) \
-                and isinstance(self.board[next_pos[1]][next_pos[0]], Tile) \
-                and self.board[tile_pos[1]][tile_pos[0]].get_item_key(type_item) == \
-                    self.board[next_pos[1]][next_pos[0]].get_item_key(type_item):
+            current_pos = add_tuples(current_pos, offset)
+            if all_values_positive(current_pos[0], current_pos[1]) \
+                and isinstance(self.board[current_pos[1]][current_pos[0]], Tile) \
+                and self.board[current_pos[1]][current_pos[0]].get_item_key(type_item) == type:
                     nbr_consecutives += 1
             else:
                 break
-            current_pos = next_pos
         return nbr_consecutives
 
     def generate_valid_recycling_moves(self):
@@ -720,7 +774,7 @@ class Board:
         new_card.update_rotation_code(rotation_code)
         position_first_tile, position_second_tile = new_card.get_tile_positions(position)
         if self.card_location_is_valid_spot(position_first_tile, position_second_tile, new_card):
-            return RegularMove(new_card, position, rotation_code)
+            return RegularMove(new_card, position_first_tile, position_second_tile, rotation_code)
         else:
             return None
 
@@ -736,8 +790,6 @@ class Board:
             current_row_str = "%2d" % (row_index + 1) + ' '
             for colVal in row:
                 current_row_str += '|' + str(colVal)
-
-
             current_row_str += '|\n'
             output_str = current_row_str + output_str
             row_index += 1
@@ -760,23 +812,24 @@ class ColorPlayer:
         self.name = "player2 - color"
         self.typeItem = Tile.Color
 
-def game_loop():
+class GameInfo:
+    def __init__(self, b, ai_player, current_player, other_player, p1, p2, tracing):
+        self.board = b
+        self.ai_player = ai_player
+        self.current_player = current_player
+        self.other_player = other_player
+        self.p1 = p1
+        self.p2 = p2
+        self.tracing = tracing
+        self.nbr_moves = 0
+
+game_info = None
+
+def set_up_game():
     b = Board(NBR_CARDS)
+
     p1 = DotPlayer()
     p2 = ColorPlayer()
-
-    # trace_input = input("Would you like to produce a trace of the minimax? Enter Y for yes or N for no \n" )
-    # while True:
-    #     if len(trace_input) == 0:
-    #         trace_input = input("Please enter Y or N \n")
-    #     elif trace_input == 'Y' or trace_input == 'y':
-    #         # call trace method
-    #         break
-    #     elif trace_input == 'N' or trace_input == 'n':
-    #         break
-    #     else:
-    #         trace_input = input("Invalid entry. Please try again \n")
-
 
     current_player = None
     other_player = None
@@ -863,31 +916,40 @@ def game_loop():
                     break
             else:
                 user_input = input("Invalid entry. Please try again \n")
+    global game_info
+    game_info = GameInfo(b, ai_player, current_player, other_player, p1, p2, tracing)
+
+def game_loop():
+    global game_info
 
     nbr_moves = 0
     while nbr_moves < MAX_NBR_MOVES:
-        if ai_player != None and current_player == ai_player:
-            inserted_tiles_pos = b.ai_move(tracing)
+        if game_info.ai_player != None and game_info.current_player == game_info.ai_player:
+            inserted_tiles_pos = game_info.board.ai_move(game_info.tracing, game_info.current_player)
         else:
-            inserted_tiles_pos = b.ask_for_input(current_player.name)
-        print(b)
-        if b.nbr_cards >= 4:
+            inserted_tiles_pos = game_info.board.ask_for_input(game_info.current_player.name)
+        print(game_info.board)
+        if game_info.board.nbr_cards >= 4:
             # Even if the other player wins at the same time as the current player, the current player has
             # the priority.
             # (i.e. The current players wins even if both players won simultaneously,
             # because the current player was the one to play the winning move)
-            if b.check_win_conditions(inserted_tiles_pos, current_player.typeItem):
-                print(current_player.name + " wins the game!!!")
+            if game_info.board.check_win_conditions(inserted_tiles_pos, game_info.current_player.typeItem):
+                print(game_info.current_player.name + " wins the game!!!")
                 return
-            if b.check_win_conditions(inserted_tiles_pos, other_player.typeItem):
-                print(other_player.name + " wins the game!!!")
+            if game_info.board.check_win_conditions(inserted_tiles_pos, game_info.other_player.typeItem):
+                print(game_info.other_player.name + " wins the game!!!")
                 return
         # We switch to the other player
-        other_player = current_player
-        current_player = p1 if current_player == p2 else p2
+        game_info.other_player = game_info.current_player
+        game_info.current_player = game_info.p1 if game_info.current_player == game_info.p2 else game_info.p2
         nbr_moves += 1
     print (str(MAX_NBR_MOVES) + " moves have been played. Thus, the game ends in a DRAW!! Congratulations to both players!")
 
+
 # main
-game_loop()
+#set_up_game()
+#game_loop()
+
+
 
