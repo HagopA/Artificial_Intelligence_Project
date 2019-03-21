@@ -22,10 +22,12 @@ def play_next_move():
         if game_info.board.check_win_conditions(inserted_tiles_pos, game_info.current_player.typeItem):
             print(game_info.current_player.name + " wins the game!!!")
             boardWidget.winningPlayer = game_info.current_player
+            boardWidget.compute_next_move_btn.setVisible(False)
             return
         if game_info.board.check_win_conditions(inserted_tiles_pos, game_info.other_player.typeItem):
             print(game_info.other_player.name + " wins the game!!!")
             boardWidget.winningPlayer = game_info.other_player
+            boardWidget.compute_next_move_btn.setVisible(False)
             return
     # We switch to the other player
     game_info.other_player = game_info.current_player
@@ -34,7 +36,10 @@ def play_next_move():
 
     if game_info.nbr_moves >= board.MAX_NBR_MOVES:
         print (str(board.MAX_NBR_MOVES) + " moves have been played. Thus, the game ends in a DRAW!! Congratulations to both players!")
+        boardWidget.compute_next_move_btn.setVisible(False)
         boardWidget.winningPlayer = -1
+    print(str(game_info.current_player.typeItem), str(board.Tile.DotState))
+    boardWidget.compute_next_move_btn.setText(("dots" if game_info.current_player.typeItem == board.Tile.DotState else "colors") + " move")
 
 class BoardWidget(QtWidgets.QWidget):
     def __init__(self, board):
@@ -49,10 +54,10 @@ class BoardWidget(QtWidgets.QWidget):
         quit_btn.setShortcut(QtCore.Qt.Key_Escape)
         quit_btn.clicked.connect(QtCore.QCoreApplication.instance().quit)
 
-        compute_next_move_btn = QtWidgets.QPushButton("Compute next move", self)
-        compute_next_move_btn.move(700, 615)
-        compute_next_move_btn.setShortcut(QtCore.Qt.Key_Space)
-        compute_next_move_btn.clicked.connect(play_next_move)
+        self.compute_next_move_btn = QtWidgets.QPushButton("Compute move", self)
+        self.compute_next_move_btn.move(700, 615)
+        self.compute_next_move_btn.setShortcut(QtCore.Qt.Key_Space)
+        self.compute_next_move_btn.clicked.connect(play_next_move)
 
         self.show()
 
@@ -229,3 +234,5 @@ app = QtWidgets.QApplication(sys.argv)
 boardWidget = BoardWidget(game_info.board)
 boardWidget.show()
 app.exec_()
+
+

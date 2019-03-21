@@ -76,7 +76,8 @@ def findMinimax(board, tracing, current_player):
         # Temporarily insert cards to it to check the heuristic cost of each move.
         for regular_move in board.generate_valid_regular_moves():
             board.insert_card_direct(regular_move)
-            level2Heuristic = 1000000
+            level2Heuristic = board.heuristic_regular_moves(regular_move, current_player)
+            """
             # Again, generating next moves, the ones min is to play. Temporarily insert cards to the board.
             # Find the move with the smallest heuristic since min is playing.
             for level3move in board.generate_valid_regular_moves():
@@ -86,8 +87,8 @@ def findMinimax(board, tracing, current_player):
                     level2Heuristic = level3Heuristic
                 board.remove_card(level3move)
                 level3Nodes += 1
-            if level2Heuristic == 1000000:
-                level2Heuristic = board.heuristic_regular_moves(regular_move, current_player)
+            """
+
             # We found the smallest heuristic cost out of all the level 3 moves.
             # We can append the level 2 move and its smallest resulting heuristic (since min is playing next)
             level2Array.append((level2Heuristic, regular_move))
@@ -256,8 +257,8 @@ class Board:
     def heuristic_regular_moves(self, regular_move, current_player):
         h_cost = 0
         enemy_player_type_item = Tile.DotState if current_player.typeItem == Tile.Color else Tile.Color
-        h_cost += self.get_max_nbr_matching_tiles([regular_move.position_first_tile, regular_move.position_second_tile], current_player.typeItem)\
-            - self.get_max_nbr_matching_tiles([regular_move.position_first_tile, regular_move.position_second_tile], enemy_player_type_item)
+        h_cost = self.calculate_heuristic_inserted_tiles([regular_move.position_first_tile, regular_move.position_second_tile], current_player.typeItem)#\
+            #- 0.5 * self.get_max_potential_matching_tiles([regular_move.position_first_tile, regular_move.position_second_tile], enemy_player_type_item)
         #h_cost -= self.get_max_nbr_blocked_tiles([regular_move.position_first_tile, regular_move.position_second_tile], current_player.typeItem)
         return h_cost
 
@@ -321,7 +322,6 @@ class Board:
             Return true if we were able to successfully and false otherwise.
         """
         args = input_std.split()
-        print (args)
         if len(args) == 0:
             print("Enter a move.")
             return None
@@ -578,20 +578,54 @@ class Board:
                         return True
         return False
 
-    def get_max_nbr_matching_tiles(self, inserted_tiles_pos, type_item):
+    def get_nbr_matching_tiles(self, tile_pos, offset, type, type_item):
+        """ Check whether or not there are 4 consecutive tiles with the same state of the type item
+            from tilePos in the direction of the offset (offset can be seen as a normalized direction vector).
+        """
+        # If the current checked tile is not even of the same type as the one seeked, we should not even
+        # check matching tiles.
+        if self.board[tile_pos[1]][tile_pos[0]].get_item_key(type_item) != type:
+            return 0
+        nbr_consecutives = 1 + self.get_nbr_matching_tiles_in_offset_direction(tile_pos, offset, type, type_item)
+        # We never need to check the direction directly up from the inserted tile (offset (1, 1)) because it is
+        # impossible to find a match in that direction.
+        # If the number of consecutive tiles found is smaller than 4, then search in the opposite direction
+        if offset != (0, -1) and nbr_consecutives < 4:
+            opposite_direction_offset = get_negative_tuple(offset)
+            nbr_consecutives += self.get_nbr_matching_tiles_in_offset_direction(
+                                                            tile_pos, opposite_direction_offset, type, type_item)
+        return nbr_consecutives
+
+    def calculate_heuristic_inserted_tiles(self, inserted_tiles_pos, type_item):
         if type_item == Tile.Color:
             types = (Tile.Color.white, Tile.Color.red)
         else:
             types = (Tile.DotState.empty, Tile.DotState.filled)
         offsets = [(0, 1), (1, 0), (1, 1), (1, -1)]
-        max_nbr_matching_tiles = 0
+        h_cost = 0
+        nbr_2_matching = 0
+        nbr_3_matching = 0
+        nbr_4_matching = 0
         for tile_pos in inserted_tiles_pos:
             for offset in offsets:
-                for type in types:
-                    nbr_matching_tiles = self.get_nbr_matching_tiles(tile_pos, offset, type, type_item)
-                    if nbr_matching_tiles > max_nbr_matching_tiles:
-                        max_nbr_matching_tiles = nbr_matching_tiles
-        return max_nbr_matching_tiles
+                for i in range(4):
+                    start_pos = (tile_pos[0] - i * offset[0], tile_pos[1] - i * offset[1])
+                    end_pos = (start_pos[0] + 3 * offset[0], start_pos[1] + 3 * offset[1])
+                    if all_values_positive(start_pos[0], start_pos[1], end_pos[0], end_pos[1]):
+                        for type in types:
+                            if isinstance(self.board[start_pos[1]][start_pos[0]], Tile) \
+                                    and self.board[start_pos[1]][start_pos[0]].get_item_key(type_item) != type:
+                                continue
+                            nbr_matching_tiles = 1 + self.get_nbr_matching_tiles_in_offset_direction(start_pos, offset, type, type_item)
+                            if nbr_matching_tiles == 1:
+                                pass
+                            elif nbr_matching_tiles == 2:
+                                nbr_2_matching += 1
+                            elif nbr_matching_tiles == 3:
+                                nbr_3_matching += 1
+                            elif nbr_matching_tiles == 4:
+                                nbr_4_matching += 1
+        return nbr_2_matching + 10 * nbr_3_matching + 1000 * nbr_4_matching
 
     def get_max_nbr_blocked_tiles(self, inserted_tiles_pos, type_item):
         if type_item == Tile.Color:
@@ -615,7 +649,6 @@ class Board:
         # check matching tiles.
         if self.board[tile_pos[1]][tile_pos[0]].get_item_key(type_item) != type:
             return 0
-        #print("offset: ", offset, "  tile_pos: ", tile_pos, "  type: ", type, "  type_item: ", type_item)
         nbr_consecutives = 1 + self.get_nbr_matching_tiles_in_offset_direction(tile_pos, offset, type, type_item)
         # We never need to check the direction directly up from the inserted tile (offset (1, 1)) because it is
         # impossible to find a match in that direction.
@@ -624,40 +657,23 @@ class Board:
             opposite_direction_offset = get_negative_tuple(offset)
             nbr_consecutives += self.get_nbr_matching_tiles_in_offset_direction(
                                                             tile_pos, opposite_direction_offset, type, type_item)
-        #print ("nbr_consecutives: ", nbr_consecutives)
-        return nbr_consecutives
-
-    def get_nbr_matching_tiles(self, tile_pos, offset, type, type_item):
-        """ Check whether or not there are 4 consecutive tiles with the same state of the type item
-            from tilePos in the direction of the offset (offset can be seen as a normalized direction vector).
-        """
-        # If the current checked tile is not even of the same type as the one seeked, we should not even
-        # check matching tiles.
-        if self.board[tile_pos[1]][tile_pos[0]].get_item_key(type_item) != type:
-            return 0
-        #print("offset: ", offset, "  tile_pos: ", tile_pos, "  type: ", type, "  type_item: ", type_item)
-        nbr_consecutives = 1 + self.get_nbr_matching_tiles_in_offset_direction(tile_pos, offset, type, type_item)
-        # We never need to check the direction directly up from the inserted tile (offset (1, 1)) because it is
-        # impossible to find a match in that direction.
-        # If the number of consecutive tiles found is smaller than 4, then search in the opposite direction
-        if offset != (0, -1) and nbr_consecutives < 4:
-            opposite_direction_offset = get_negative_tuple(offset)
-            nbr_consecutives += self.get_nbr_matching_tiles_in_offset_direction(
-                                                            tile_pos, opposite_direction_offset, type, type_item)
-        #print ("nbr_consecutives: ", nbr_consecutives)
         return nbr_consecutives
 
     def get_nbr_matching_tiles_in_offset_direction(self, tile_pos, offset, type, type_item):
         nbr_consecutives = 0
         current_pos = tile_pos
-        while nbr_consecutives < 4:
+        checked_tiles = 0
+        while checked_tiles < 3:
             current_pos = add_tuples(current_pos, offset)
             if all_values_positive(current_pos[0], current_pos[1]) \
-                and isinstance(self.board[current_pos[1]][current_pos[0]], Tile) \
-                and self.board[current_pos[1]][current_pos[0]].get_item_key(type_item) == type:
+                and isinstance(self.board[current_pos[1]][current_pos[0]], Tile):
+                # Check whether this tile is a blocking one or not
+                if self.board[current_pos[1]][current_pos[0]].get_item_key(type_item) == type:
                     nbr_consecutives += 1
-            else:
-                break
+                # If it is a blocking tile, stop checking in the offset direction.
+                else:
+                    return 0
+            checked_tiles += 1
         return nbr_consecutives
 
     def generate_valid_recycling_moves(self):
