@@ -259,9 +259,16 @@ class Board:
         array_colors_tiles = [regular_move.new_card.activeSide.tile1.color, regular_move.new_card.activeSide.tile2.color]
         array_dot_states_tiles = [regular_move.new_card.activeSide.tile1.dotState, regular_move.new_card.activeSide.tile2.dotState]
 
+        center_heuristic = 0
+        if regular_move.position_first_tile[0] == 3 or regular_move.position_first_tile[0] == 4:
+            center_heuristic += 1
+        if regular_move.position_second_tile[0] == 3 or regular_move.position_second_tile[0] == 4:
+            center_heuristic += 1
+
         return self.calculate_heuristic_inserted_tiles([regular_move.position_first_tile, regular_move.position_second_tile], current_player.typeItem)\
                     - 0.5 * self.calculate_heuristic_inserted_tiles([regular_move.position_first_tile, regular_move.position_second_tile], enemy_player_type_item)\
-                    + self.calculate_heuristic_blocking([regular_move.position_first_tile, regular_move.position_second_tile], array_colors_tiles, array_dot_states_tiles, enemy_player_type_item)
+                    + self.calculate_heuristic_blocking([regular_move.position_first_tile, regular_move.position_second_tile], array_colors_tiles, array_dot_states_tiles, enemy_player_type_item)\
+                    + center_heuristic
 
     # Since the number of possible moves during the recycling phase and the regular phase are different,
     # the heuristic should be different as well (less costly when in recycling phase)
