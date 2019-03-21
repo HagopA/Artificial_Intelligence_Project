@@ -58,16 +58,16 @@ def findMinimax(board, tracing, current_player):
     if board.isInRecyclingPhase():
         for recycling_move in board.generate_valid_recycling_moves():
             board.swap_card_direct(recycling_move)
-            level2Heuristic = 1000000
-            for level3_recycling_move in board.generate_valid_recycling_moves():
-                board.swap_card_direct(level3_recycling_move)
-                level3Heuristic = board.heuristic_recycling_moves()
-                if level3Heuristic < level2Heuristic:
-                    level2Heuristic = level3Heuristic
-                board.put_back_card_direct(level3_recycling_move)
-                level3Nodes += 1
-            if level2Heuristic == 1000000:
-                level2Heuristic = board.heuristic_recycling_moves()
+            level2Heuristic = board.heuristic_recycling_moves(recycling_move, current_player)
+            """
+                for level3_recycling_move in board.generate_valid_recycling_moves():
+                    board.swap_card_direct(level3_recycling_move)
+                    level3Heuristic = board.heuristic_recycling_moves(recycling_move, current_player)
+                    if level3Heuristic < level2Heuristic:
+                        level2Heuristic = level3Heuristic
+                    board.put_back_card_direct(level3_recycling_move)
+                    level3Nodes += 1
+            """
             level2Array.append((level2Heuristic, recycling_move))
             # Restore the swapped card
             board.put_back_card_direct(recycling_move)
@@ -255,21 +255,38 @@ class Board:
         return evaluation_func
 
     def heuristic_regular_moves(self, regular_move, current_player):
-        h_cost = 0
         enemy_player_type_item = Tile.DotState if current_player.typeItem == Tile.Color else Tile.Color
-        h_cost = self.calculate_heuristic_inserted_tiles([regular_move.position_first_tile, regular_move.position_second_tile], current_player.typeItem)#\
-            #- 0.5 * self.calculate_heuristic_inserted_tiles([regular_move.position_first_tile, regular_move.position_second_tile], enemy_player_type_item)
         array_colors_tiles = [regular_move.new_card.activeSide.tile1.color, regular_move.new_card.activeSide.tile2.color]
         array_dot_states_tiles = [regular_move.new_card.activeSide.tile1.dotState, regular_move.new_card.activeSide.tile2.dotState]
-        #h_cost += self.calculate_heuristic_blocking([regular_move.position_first_tile, regular_move.position_second_tile], array_colors_tiles, array_dot_states_tiles, enemy_player_type_item)
-        regular_move.position_second_tile
-        return h_cost
+
+        return self.calculate_heuristic_inserted_tiles([regular_move.position_first_tile, regular_move.position_second_tile], current_player.typeItem)\
+                    - 0.5 * self.calculate_heuristic_inserted_tiles([regular_move.position_first_tile, regular_move.position_second_tile], enemy_player_type_item)\
+                    + self.calculate_heuristic_blocking([regular_move.position_first_tile, regular_move.position_second_tile], array_colors_tiles, array_dot_states_tiles, enemy_player_type_item)
 
     # Since the number of possible moves during the recycling phase and the regular phase are different,
     # the heuristic should be different as well (less costly when in recycling phase)
-    def heuristic_recycling_moves(self):
+    def heuristic_recycling_moves(self, recycling_move, current_player):
         # For iteration 2, we use the same naive heuristic for both recyling moves and regular moves.
-        return self.bad_heuristic_regular_moves_iteration_2()
+        return self.heuristic_regular_moves(RegularMove(recycling_move.card_to_swap, recycling_move.position_card_1st_tile,
+                                                            recycling_move.position_card_2nd_tile, recycling_move.new_rot_code), current_player)
+
+    class RecyclingMove:
+        def __init__(self, card_to_swap, old_rot_code, new_rot_code,
+                     position_card_1st_tile, position_card_2nd_tile, position_first_tile, position_second_tile):
+            self.card_to_swap = card_to_swap
+            self.old_rot_code = old_rot_code
+            self.new_rot_code = new_rot_code
+            self.position_card_1st_tile = position_card_1st_tile
+            self.position_card_2nd_tile = position_card_2nd_tile
+            self.position_first_tile = position_first_tile
+            self.position_second_tile = position_second_tile
+
+    class RegularMove:
+        def __init__(self, new_card, position_first_tile, position_second_tile, rotation_code):
+            self.new_card = new_card
+            self.position_first_tile = position_first_tile
+            self.position_second_tile = position_second_tile
+            self.rotation_code = rotation_code
 
     def ai_move(self, tracing, current_player):
         with TogglePrintingOffGuard():
@@ -581,6 +598,10 @@ class Board:
                     end_pos = (start_pos[0] + 3 * offset[0], start_pos[1] + 3 * offset[1])
                     if all_values_positive(start_pos[0], start_pos[1], end_pos[0], end_pos[1]):
                         for type in types:
+                            if not isinstance(self.board[start_pos[1]][start_pos[0]], Tile):
+                                continue
+                            if self.board[start_pos[1]][start_pos[0]].get_item_key(type_item) != type:
+                                    continue
                             if self.get_nbr_matching_tiles_in_offset_direction(start_pos, offset, type, type_item) >= 3:
                                 return True
         return False
