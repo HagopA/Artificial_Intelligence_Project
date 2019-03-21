@@ -38,7 +38,6 @@ def play_next_move():
         print (str(board.MAX_NBR_MOVES) + " moves have been played. Thus, the game ends in a DRAW!! Congratulations to both players!")
         boardWidget.compute_next_move_btn.setVisible(False)
         boardWidget.winningPlayer = -1
-    print(str(game_info.current_player.typeItem), str(board.Tile.DotState))
     boardWidget.compute_next_move_btn.setText(("dots" if game_info.current_player.typeItem == board.Tile.DotState else "colors") + " move")
 
 class BoardWidget(QtWidgets.QWidget):
