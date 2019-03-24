@@ -7,7 +7,7 @@ import copy
 # The specifications tell us that there are 24 cards available to be placed on the board (shared between both players).
 NBR_CARDS = 24
 # The specifications tell us that there are a maximum of 60 moves, after which the game ends in a draw.
-MAX_NBR_MOVES = 60
+MAX_NBR_MOVES = 40
 
 position_first_tile = None
 position_second_tile = None
@@ -59,15 +59,16 @@ def findMinimax(board, tracing, current_player):
         for recycling_move in board.generate_valid_recycling_moves():
             board.swap_card_direct(recycling_move)
             level2Heuristic = board.heuristic_recycling_moves(recycling_move, current_player)
-            """
-                for level3_recycling_move in board.generate_valid_recycling_moves():
-                    board.swap_card_direct(level3_recycling_move)
-                    level3Heuristic = board.heuristic_recycling_moves(recycling_move, current_player)
-                    if level3Heuristic < level2Heuristic:
-                        level2Heuristic = level3Heuristic
-                    board.put_back_card_direct(level3_recycling_move)
-                    level3Nodes += 1
-            """
+
+            # for level3_recycling_move in board.generate_valid_recycling_moves():
+            #     board.swap_card_direct(level3_recycling_move)
+            #     level3Heuristic = board.heuristic_recycling_moves(level3_recycling_move, game_info.other_player)
+            #     if level3Heuristic > maxLevel3Heuristic:
+            #             level2Heuristic = board.heuristic_recycling_moves(recycling_move, current_player)
+            #             maxLevel3Heuristic = level3Heuristic
+            #     board.put_back_card_direct(level3_recycling_move)
+            #     level3Nodes += 1
+
             level2Array.append((level2Heuristic, recycling_move))
             # Restore the swapped card
             board.put_back_card_direct(recycling_move)
@@ -76,19 +77,30 @@ def findMinimax(board, tracing, current_player):
         # Temporarily insert cards to it to check the heuristic cost of each move.
         for regular_move in board.generate_valid_regular_moves():
             board.insert_card_direct(regular_move)
-            level2Heuristic = board.heuristic_regular_moves(regular_move, current_player)
-            """
+            level2Heuristic = 1000000
+            maxLevel3Heuristic = 0
             # Again, generating next moves, the ones min is to play. Temporarily insert cards to the board.
             # Find the move with the smallest heuristic since min is playing.
-            for level3move in board.generate_valid_regular_moves():
-                board.insert_card_direct(level3move)
-                level3Heuristic = board.heuristic_regular_moves(level3move, current_player)
-                if level3Heuristic < level2Heuristic:
-                    level2Heuristic = level3Heuristic
-                board.remove_card(level3move)
-                level3Nodes += 1
-            """
-
+            if board.isInRecyclingPhase():
+                for level3_recycling_move in board.generate_valid_recycling_moves():
+                    board.swap_card_direct(level3_recycling_move)
+                    level3Heuristic = board.heuristic_recycling_moves(level3_recycling_move, current_player)
+                    if level3Heuristic < maxLevel3Heuristic:
+                        level2Heuristic = board.heuristic_regular_moves(regular_move, current_player)
+                        maxLevel3Heuristic = level3Heuristic
+                    board.put_back_card_direct(level3_recycling_move)
+                    level3Nodes += 1
+            else:
+                for level3move in board.generate_valid_regular_moves():
+                    board.insert_card_direct(level3move)
+                    level3Heuristic = board.heuristic_regular_moves(level3move, current_player)
+                    if level3Heuristic < maxLevel3Heuristic:
+                        level2Heuristic = board.heuristic_regular_moves(regular_move, current_player)
+                        maxLevel3Heuristic = level3Heuristic
+                    board.remove_card(level3move)
+                    level3Nodes += 1
+            if level2Heuristic == 1000000:
+                level2Heuristic = board.heuristic_regular_moves(regular_move, current_player)
             # We found the smallest heuristic cost out of all the level 3 moves.
             # We can append the level 2 move and its smallest resulting heuristic (since min is playing next)
             level2Array.append((level2Heuristic, regular_move))
@@ -300,7 +312,7 @@ class Board:
             aiMove = findMinimax(self, tracing, current_player)
             self.nbr_cards += 1
             Card.id_count += 1
-            return self.swap_card_direct(aiMove) if isinstance(aiMove, RecyclingMove) else self.insert_card_direct(aiMove)
+        return self.swap_card_direct(aiMove) if isinstance(aiMove, RecyclingMove) else self.insert_card_direct(aiMove)
 
     def remove_card(self, regular_move):
         self.board[regular_move.position_first_tile[1]][regular_move.position_first_tile[0]] = ' ' * 4
@@ -445,6 +457,17 @@ class Board:
         return [recyclingMove.position_first_tile, recyclingMove.position_second_tile]
 
     def swap_card_direct(self, recyclingMove):
+        if game_info.ai_player != None and game_info.current_player == game_info.ai_player:
+            print(chr(65 + min(recyclingMove.position_card_1st_tile[0], recyclingMove.position_card_2nd_tile[0]))
+                  + " " + str(
+                min(recyclingMove.position_card_1st_tile[1], recyclingMove.position_card_2nd_tile[1]) + 1) + " " +
+                  chr(65 + max(recyclingMove.position_card_1st_tile[0], recyclingMove.position_card_2nd_tile[0]))
+                  + " " + str(
+                max(recyclingMove.position_card_1st_tile[1], recyclingMove.position_card_2nd_tile[1]) + 1) + " " +
+                  str(recyclingMove.new_rot_code) + " " + chr(
+                65 + min(recyclingMove.position_first_tile[0], recyclingMove.position_second_tile[0]))
+                  + " " + str(min(recyclingMove.position_first_tile[1], recyclingMove.position_second_tile[1]) + 1))
+
         recyclingMove.card_to_swap.update_rotation_code(recyclingMove.new_rot_code)
         self.board[recyclingMove.position_card_1st_tile[1]][recyclingMove.position_card_1st_tile[0]] = ' ' * 4
         self.board[recyclingMove.position_card_2nd_tile[1]][recyclingMove.position_card_2nd_tile[0]] = ' ' * 4
@@ -535,6 +558,11 @@ class Board:
         return [position_new_card, position_second_tile]
 
     def insert_card_direct(self, regular_move):
+        if game_info.ai_player != None and game_info.current_player == game_info.ai_player:
+            print("0 " + str(regular_move.rotation_code) + " " + chr(
+                65 + min(regular_move.position_first_tile[0], regular_move.position_second_tile[0]))
+                  + " " + str(min(regular_move.position_first_tile[1], regular_move.position_second_tile[1]) + 1))
+
         regular_move.new_card.update_rotation_code(regular_move.rotation_code)
         self.board[regular_move.position_first_tile[1]][regular_move.position_first_tile[0]] = regular_move.new_card.activeSide.tile1
         self.board[regular_move.position_second_tile[1]][regular_move.position_second_tile[0]] = regular_move.new_card.activeSide.tile2
@@ -713,6 +741,10 @@ class Board:
                 if isinstance(self.board[j][i], Tile) and \
                         (((j+1) == self.DIMENSIONS_X_Y[1]) or not isinstance(self.board[j + 1][i], Tile)):
                     card_to_recycle = self.board[j][i].cardOwner
+                    otherPos = self.find_location_other_tile_of_card(card_to_recycle, (i, j))
+                    if i != otherPos[0]:
+                        if isinstance(self.board[otherPos[1]+1][otherPos[0]],Tile):
+                            break
                     # If we already checked the valid moves of that card, we can ignore it.
                     if card_to_recycle != cardOwnerPreviousTile:
                         cards_recycled_and_locations[card_to_recycle] = ((i, j), self.find_location_other_tile_of_card(card_to_recycle, (i, j)))
@@ -873,7 +905,7 @@ def set_up_game():
     current_player = None
     other_player = None
     ai_player = None
-
+    tracing = None
     ai_input = input("Would you like to play against the AI? Enter Y for yes or N for no \n")
     while True:
         if len(ai_input) == 0:
@@ -987,8 +1019,8 @@ def game_loop():
 
 
 # main
-#set_up_game()
-#game_loop()
+set_up_game()
+game_loop()
 
 
 
