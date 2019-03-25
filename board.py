@@ -266,8 +266,8 @@ class Board:
         enemy_player_type_item = Tile.DotState if current_player.typeItem == Tile.Color else Tile.Color
         return self.calculate_heuristic_inserted_tiles([regular_move.position_first_tile, regular_move.position_second_tile], current_player.typeItem)\
                 - self.calculate_heuristic_inserted_tiles([regular_move.position_first_tile, regular_move.position_second_tile], enemy_player_type_item)\
-                + self.calculate_heuristic_blocking([regular_move.position_first_tile, regular_move.position_second_tile], enemy_player_type_item)\
-                - self.calculate_heuristic_blocking([regular_move.position_first_tile, regular_move.position_second_tile], current_player.typeItem)
+                + 1.5 * self.calculate_heuristic_blocking([regular_move.position_first_tile, regular_move.position_second_tile], enemy_player_type_item)\
+                - 0.3 * self.calculate_heuristic_blocking([regular_move.position_first_tile, regular_move.position_second_tile], current_player.typeItem)
 
     # Since the number of possible moves during the recycling phase and the regular phase are different,
     # the heuristic should be different as well (less costly when in recycling phase)
@@ -659,7 +659,7 @@ class Board:
                                 nbr_3_matching += 1
                             elif nbr_matching_tiles == 4:
                                 nbr_4_matching += 1
-        return nbr_2_matching + 10 * nbr_3_matching + 1000 * nbr_4_matching
+        return 10 * nbr_2_matching + 12.5 * nbr_3_matching + 100000 * nbr_4_matching
 
     def calculate_heuristic_blocking(self, inserted_tiles_pos, blocking_type_item):
         offsets = [(0, -1), (1, 0), (1, 1), (1, -1)]
@@ -692,7 +692,7 @@ class Board:
                     nbr_3_blocking += 1
                 elif max_nbr_blocked_tiles_offset == 4:
                     nbr_4_blocking += 1
-        return nbr_2_blocking + 10 * nbr_3_blocking + 1000 * nbr_4_blocking
+        return 10 * nbr_2_blocking + 12.5 * nbr_3_blocking + 100 * nbr_4_blocking
 
     def get_nbr_blocking_tiles_in_offset_direction(self, tile_pos, inserted_tiles_pos, offset, blocking_type, type_item):
         current_pos = tile_pos
