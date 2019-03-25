@@ -441,7 +441,7 @@ class Board:
         # Make sure the same card can't be recycled twice
         self.recycled_card = card_to_swap
 
-        return [recyclingMove.position_first_tile, recyclingMove.position_second_tile]
+        return [recyclingMove.position_card_1st_tile, recyclingMove.position_card_2nd_tile, recyclingMove.position_first_tile, recyclingMove.position_second_tile]
 
     def swap_card_direct(self, recyclingMove):
         if game_info.ai_player != None and game_info.current_player == game_info.ai_player:
@@ -460,7 +460,7 @@ class Board:
         self.board[recyclingMove.position_card_2nd_tile[1]][recyclingMove.position_card_2nd_tile[0]] = ' ' * 4
         self.board[recyclingMove.position_first_tile[1]][recyclingMove.position_first_tile[0]] = recyclingMove.card_to_swap.activeSide.tile1
         self.board[recyclingMove.position_second_tile[1]][recyclingMove.position_second_tile[0]] = recyclingMove.card_to_swap.activeSide.tile2
-        return [recyclingMove.position_first_tile, recyclingMove.position_second_tile]
+        return [recyclingMove.position_card_1st_tile, recyclingMove.position_card_2nd_tile, recyclingMove.position_first_tile, recyclingMove.position_second_tile]
 
     # Method used to "cancel" a recycling move
     def put_back_card_direct(self, recyclingMove):
@@ -542,7 +542,7 @@ class Board:
         self.nbr_cards += 1
         Card.id_count += 1
 
-        return [position_new_card, position_second_tile]
+        return [position_first_tile, position_second_tile]
 
     def insert_card_direct(self, regular_move):
         if game_info.ai_player != None and game_info.current_player == game_info.ai_player:
@@ -667,10 +667,13 @@ class Board:
         nbr_3_blocking = 0
         nbr_4_blocking = 0
         for tile_pos in inserted_tiles_pos:
+            tile = self.board[tile_pos[1]][tile_pos[0]]
+            if not isinstance(tile, Tile):
+                continue
             if blocking_type_item == Tile.Color:
-                blocking_type = self.board[tile_pos[1]][tile_pos[0]].color
+                blocking_type = tile.color
             else:
-                blocking_type = self.board[tile_pos[1]][tile_pos[0]].dotState
+                blocking_type = tile.dotState
 
             for offset in offsets:
                 max_nbr_blocked_tiles_offset = 0

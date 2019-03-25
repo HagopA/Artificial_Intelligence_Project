@@ -12,6 +12,11 @@ def play_next_move():
         inserted_tiles_pos = game_info.board.ai_move(game_info.tracing, game_info.current_player)
     else:
         inserted_tiles_pos = boardWidget.ask_for_input_qt(game_info.current_player.name)
+    if len(inserted_tiles_pos) == 2:
+        boardWidget.cardsPos.add(tuple(inserted_tiles_pos))
+    else:
+        boardWidget.cardsPos.remove((inserted_tiles_pos[0], inserted_tiles_pos[1]))
+        boardWidget.cardsPos.add((inserted_tiles_pos[2], inserted_tiles_pos[3]))
     boardWidget.update()
     print(game_info.board)
     if game_info.board.nbr_cards >= 4:
@@ -44,6 +49,8 @@ class BoardWidget(QtWidgets.QWidget):
     def __init__(self, board):
         super().__init__()
         self.board = board
+        # We only need to keep a reference to the cards on the board to display them properly in the UI.
+        self.cardsPos = set()
         self.winningPlayer = None
         self.setGeometry(300, 100, 900, 900)
         self.setWindowTitle("Double Card")
@@ -127,6 +134,8 @@ class BoardWidget(QtWidgets.QWidget):
                     y_pos = y_init_pos + y_increment * (self.board.DIMENSIONS_X_Y[1] - j - 1)
                     self.draw_tile(painter, tile_to_be_drawn, x_pos, y_pos, x_increment, y_increment)
 
+        self.drawCardBorders(painter, x_init_pos, y_init_pos, x_increment, y_increment)
+
     def draw_tile(self, painter, tile_to_be_drawn, x_pos, y_pos, x_increment, y_increment):
         radius = 10
         if tile_to_be_drawn.color == board.Tile.Color.red:
@@ -139,6 +148,36 @@ class BoardWidget(QtWidgets.QWidget):
         else:
             painter.setPen(QtGui.QPen(Qt.black, 2, Qt.SolidLine))
         painter.drawEllipse(x_pos - radius + x_increment / 2, y_pos - radius + y_increment / 2, radius * 2, radius * 2)
+
+    def drawCardBorders(self, painter, x_init_pos, y_init_pos, x_increment, y_increment):
+        for card in self.cardsPos:
+            painter.setPen(QtGui.QPen(QtGui.QColor(0, 0, 153), 2, Qt.SolidLine))
+            if card[0] < card[1]:
+                if card[0][0] == card[1][0]:
+                    bottom_left_pos_x = x_init_pos + x_increment * (card[0][0] + 1)
+                    bottom_left_pos_y = y_init_pos + y_increment * (self.board.DIMENSIONS_X_Y[1] - card[0][1])
+                    top_right_pos_x = x_init_pos + x_increment * (card[1][0] + 2)
+                    top_right_pos_y = y_init_pos + y_increment * (self.board.DIMENSIONS_X_Y[1] - card[1][1] - 1)
+                else:
+                    bottom_left_pos_x = x_init_pos + x_increment * (card[0][0] + 1)
+                    bottom_left_pos_y = y_init_pos + y_increment * (self.board.DIMENSIONS_X_Y[1] - card[0][1])
+                    top_right_pos_x = x_init_pos + x_increment * (card[1][0] + 2)
+                    top_right_pos_y = y_init_pos + y_increment * (self.board.DIMENSIONS_X_Y[1] - card[1][1] - 1)
+            else:
+                if card[0][0] == card[1][0]:
+                    bottom_left_pos_x = x_init_pos + x_increment * (card[1][0] + 1)
+                    bottom_left_pos_y = y_init_pos + y_increment * (self.board.DIMENSIONS_X_Y[1] - card[1][1])
+                    top_right_pos_x = x_init_pos + x_increment * (card[0][0] + 2)
+                    top_right_pos_y = y_init_pos + y_increment * (self.board.DIMENSIONS_X_Y[1] - card[0][1] - 1)
+                else:
+                    top_right_pos_x = x_init_pos + x_increment * (card[1][0] + 1)
+                    top_right_pos_y = y_init_pos + y_increment * (self.board.DIMENSIONS_X_Y[1] - card[1][1])
+                    bottom_left_pos_x = x_init_pos + x_increment * (card[0][0] + 2)
+                    bottom_left_pos_y = y_init_pos + y_increment * (self.board.DIMENSIONS_X_Y[1] - card[0][1] - 1)
+            painter.drawLine(bottom_left_pos_x, bottom_left_pos_y, top_right_pos_x, bottom_left_pos_y)
+            painter.drawLine(bottom_left_pos_x, top_right_pos_y, top_right_pos_x, top_right_pos_y)
+            painter.drawLine(bottom_left_pos_x, bottom_left_pos_y, bottom_left_pos_x, top_right_pos_y)
+            painter.drawLine(top_right_pos_x, bottom_left_pos_y, top_right_pos_x, top_right_pos_y)
 
     def drawLegendRotCodes(self, painter):
         painter.setFont(QtGui.QFont('Decorative', 10))
