@@ -61,7 +61,8 @@ def findMinimax(board, tracing, current_player):
     if board.isInRecyclingPhase():
         for recycling_move in board.generate_valid_recycling_moves():
             board.swap_card_direct(recycling_move)
-            level2Array.append((board.heuristic_recycling_moves(recycling_move, current_player), recycling_move))
+            recycling_move_heuristic = board.heuristic_recycling_moves([recycling_move.position_first_tile, recycling_move.position_second_tile], current_player)
+            level2Array.append((recycling_move_heuristic, recycling_move))
             # Restore the swapped card
             board.put_back_card_direct(recycling_move)
     else:
@@ -76,9 +77,10 @@ def findMinimax(board, tracing, current_player):
                 # Find the move with the smallest heuristic since min is playing.
                 for level3_recycling_move in board.generate_valid_recycling_moves():
                     board.swap_card_direct(level3_recycling_move)
-                    level3Heuristic = board.heuristic_recycling_moves(level3_recycling_move, current_player)
-                    if level3Heuristic < minLevel3Heuristic:
-                        minLevel3Heuristic = level3Heuristic
+                    inserted_tiles_pos = [level3_recycling_move.position_first_tile, level3_recycling_move.position_second_tile, regular_move.position_first_tile, regular_move.position_second_tile]
+                    level3RecyclingMoveHeuristic = board.heuristic_recycling_moves(inserted_tiles_pos, current_player)
+                    if level3RecyclingMoveHeuristic < minLevel3Heuristic:
+                        minLevel3Heuristic = level3RecyclingMoveHeuristic
                     board.put_back_card_direct(level3_recycling_move)
                     level3Nodes += 1
             else:
@@ -86,14 +88,12 @@ def findMinimax(board, tracing, current_player):
                 # Find the move with the smallest heuristic since min is playing.
                 for level3move in board.generate_valid_regular_moves():
                     board.insert_card_direct(level3move)
-                    level3Heuristic = board.heuristic_regular_moves(level3move, current_player)
+                    inserted_tiles_pos = [level3move.position_first_tile, level3move.position_second_tile, regular_move.position_first_tile, regular_move.position_second_tile]
+                    level3Heuristic = board.heuristic_regular_moves(inserted_tiles_pos, current_player)
                     if level3Heuristic < minLevel3Heuristic:
                         minLevel3Heuristic = level3Heuristic
                     board.remove_card(level3move)
                     level3Nodes += 1
-            # Because of how our heuristic is made, it is crucial to add the heuristic at max level (level 2) to the
-            # the one at min level (level3).
-            minLevel3Heuristic += board.heuristic_regular_moves(regular_move, current_player)
             # We found the smallest heuristic cost out of all the level 3 moves.
             # We can append the current regular move with its smallest resulting heuristic (since min is playing next)
             level2Array.append((minLevel3Heuristic, regular_move))
@@ -259,19 +259,18 @@ class Board:
         evaluation_func = sum_empty_white + 3 * sum_full_white - 2 * sum_empty_red - 1.5 * sum_full_red
         return evaluation_func
 
-    def heuristic_regular_moves(self, regular_move, current_player):
+    def heuristic_regular_moves(self, inserted_tiles_pos, current_player):
         enemy_player_type_item = Tile.DotState if current_player.typeItem == Tile.Color else Tile.Color
-        return self.calculate_heuristic_inserted_tiles([regular_move.position_first_tile, regular_move.position_second_tile], current_player.typeItem)\
-                - 0.8 * self.calculate_heuristic_inserted_tiles([regular_move.position_first_tile, regular_move.position_second_tile], enemy_player_type_item)\
-                + 1.5 * self.calculate_heuristic_blocking([regular_move.position_first_tile, regular_move.position_second_tile], enemy_player_type_item)\
-                - 0.3 * self.calculate_heuristic_blocking([regular_move.position_first_tile, regular_move.position_second_tile], current_player.typeItem)
+        return self.calculate_heuristic_inserted_tiles(inserted_tiles_pos, current_player.typeItem)\
+                - 0.8 * self.calculate_heuristic_inserted_tiles(inserted_tiles_pos, enemy_player_type_item)\
+                + 1.5 * self.calculate_heuristic_blocking(inserted_tiles_pos, enemy_player_type_item)\
+                - 0.5 * self.calculate_heuristic_blocking(inserted_tiles_pos, current_player.typeItem)
 
     # Since the number of possible moves during the recycling phase and the regular phase are different,
     # the heuristic should be different as well (less costly when in recycling phase)
-    def heuristic_recycling_moves(self, recycling_move, current_player):
+    def heuristic_recycling_moves(self, inserted_tiles_pos, current_player):
         # For iteration 2, we use the same naive heuristic for both recyling moves and regular moves.
-        return self.heuristic_regular_moves(RegularMove(recycling_move.card_to_swap, recycling_move.position_card_1st_tile,
-                                                            recycling_move.position_card_2nd_tile, recycling_move.new_rot_code), current_player)
+        return self.heuristic_regular_moves(inserted_tiles_pos, current_player)
 
     class RecyclingMove:
         def __init__(self, card_to_swap, old_rot_code, new_rot_code,
@@ -660,9 +659,9 @@ class Board:
 
     def calculate_heuristic_blocking(self, inserted_tiles_pos, blocking_type_item):
         offsets = [(0, -1), (1, 0), (1, 1), (1, -1)]
+        nbr_1_blocking = 0
         nbr_2_blocking = 0
         nbr_3_blocking = 0
-        nbr_4_blocking = 0
         for tile_pos in inserted_tiles_pos:
             blocking_type = self.get_type_tile_pos(tile_pos, blocking_type_item)
             if blocking_type is None:
@@ -676,15 +675,13 @@ class Board:
                         nbr_blocked_tiles = self.get_nbr_blocking_tiles_in_offset_direction(start_pos, inserted_tiles_pos, offset, blocking_type, blocking_type_item)
                         if nbr_blocked_tiles > max_nbr_blocked_tiles:
                             max_nbr_blocked_tiles = nbr_blocked_tiles
-                if max_nbr_blocked_tiles <= 1:
-                    pass
+                if max_nbr_blocked_tiles == 1:
+                    nbr_1_blocking += 1
                 elif max_nbr_blocked_tiles == 2:
                     nbr_2_blocking += 1
                 elif max_nbr_blocked_tiles == 3:
                     nbr_3_blocking += 1
-                elif max_nbr_blocked_tiles == 4:
-                    nbr_4_blocking += 1
-        return 10 * nbr_2_blocking + 1000 * nbr_3_blocking
+        return nbr_1_blocking + 10 * nbr_2_blocking + 10000 * nbr_3_blocking
 
     def get_nbr_blocking_tiles_in_offset_direction(self, tile_pos, inserted_tiles_pos, offset, blocking_type, type_item):
         current_pos = tile_pos
