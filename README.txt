@@ -15,3 +15,9 @@ This includes all the lines under the comment "# MAIN - uncomment to play withou
 You could also comment out the lines under # MAIN in the file gui.py, but that is not necessary.
 Then, run the module board (board.py).
 In PyCharm, this is done by simply clicking on the green arrow at the top right of the PyCharm window (or pressing Shift+F10).
+
+NOTE: To run the program with the GUI, the PyQt5 library needs to be installed. Otherwise, please run the program without GUI.
+
+INSTALLING PYQT5 IN PYCHARM
+To install PyQt5 using the PyCharm project, simply click on the missing dependency at the top of the file gui.py (within the PyCharm project).
+Then, press Alt+Enter and click on 'Install PyQt5'.
