@@ -263,7 +263,7 @@ class Board:
         enemy_player_type_item = Tile.DotState if current_player.typeItem == Tile.Color else Tile.Color
         return self.calculate_heuristic_inserted_tiles(inserted_tiles_pos, current_player.typeItem)\
                 - 0.8 * self.calculate_heuristic_inserted_tiles(inserted_tiles_pos, enemy_player_type_item)\
-                + 1.5 * self.calculate_heuristic_blocking(inserted_tiles_pos, enemy_player_type_item)\
+                + 10 * self.calculate_heuristic_blocking(inserted_tiles_pos, enemy_player_type_item)\
                 - 0.5 * self.calculate_heuristic_blocking(inserted_tiles_pos, current_player.typeItem)
 
     # Since the number of possible moves during the recycling phase and the regular phase are different,
@@ -655,7 +655,7 @@ class Board:
                     nbr_3_matching += 1
                 elif max_nbr_macthing_tiles == 4:
                     nbr_4_matching += 1
-        return nbr_2_matching + 10 * nbr_3_matching + 10000 * nbr_4_matching
+        return nbr_2_matching + 10 * nbr_3_matching + 100000 * nbr_4_matching
 
     def calculate_heuristic_blocking(self, inserted_tiles_pos, blocking_type_item):
         offsets = [(0, -1), (1, 0), (1, 1), (1, -1)]
