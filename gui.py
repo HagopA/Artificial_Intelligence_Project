@@ -263,7 +263,7 @@ class BoardWidget(QtWidgets.QWidget):
         painter.setPen(QtGui.QPen(Qt.black, 2, Qt.SolidLine))
         painter.drawEllipse(813.75, 589, 5, 5)
 
-
+# MAIN
 board.set_up_game()
 
 game_info = board.game_info

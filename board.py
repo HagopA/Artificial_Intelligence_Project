@@ -1013,7 +1013,7 @@ def game_loop():
     print (str(MAX_NBR_MOVES) + " moves have been played. Thus, the game ends in a DRAW!! Congratulations to both players!")
 
 
-# main
+# MAIN - uncomment to play without the GUI
 #set_up_game()
 #game_loop()
 
