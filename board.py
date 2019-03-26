@@ -55,18 +55,13 @@ def findMinimax(board, tracing, current_player):
     level2Array = []
     level3Nodes = 0
 
+    # If the board is in the recycling phase, we do not look at level 3, since our heuristic is too informed
+    # (i.e. too costly) for recycling moves, since there are generally a lot more recycling moves generated than
+    # regular moves.
     if board.isInRecyclingPhase():
         for recycling_move in board.generate_valid_recycling_moves():
             board.swap_card_direct(recycling_move)
-            minLevel3Heuristic = 1000000
-            for level3_recycling_move in board.generate_valid_recycling_moves():
-                board.swap_card_direct(level3_recycling_move)
-                level3Heuristic = board.heuristic_recycling_moves(level3_recycling_move, game_info.other_player)
-                if level3Heuristic < minLevel3Heuristic:
-                    minLevel3Heuristic = level3Heuristic
-                board.put_back_card_direct(level3_recycling_move)
-                level3Nodes += 1
-            level2Array.append((minLevel3Heuristic, recycling_move))
+            level2Array.append((board.heuristic_recycling_moves(recycling_move, current_player), recycling_move))
             # Restore the swapped card
             board.put_back_card_direct(recycling_move)
     else:
@@ -96,6 +91,8 @@ def findMinimax(board, tracing, current_player):
                         minLevel3Heuristic = level3Heuristic
                     board.remove_card(level3move)
                     level3Nodes += 1
+            # Because of how our heuristic is made, it is crucial to add the heuristic at max level (level 2) to the
+            # the one at min level (level3).
             minLevel3Heuristic += board.heuristic_regular_moves(regular_move, current_player)
             # We found the smallest heuristic cost out of all the level 3 moves.
             # We can append the current regular move with its smallest resulting heuristic (since min is playing next)
@@ -265,7 +262,7 @@ class Board:
     def heuristic_regular_moves(self, regular_move, current_player):
         enemy_player_type_item = Tile.DotState if current_player.typeItem == Tile.Color else Tile.Color
         return self.calculate_heuristic_inserted_tiles([regular_move.position_first_tile, regular_move.position_second_tile], current_player.typeItem)\
-                - self.calculate_heuristic_inserted_tiles([regular_move.position_first_tile, regular_move.position_second_tile], enemy_player_type_item)\
+                - 0.8 * self.calculate_heuristic_inserted_tiles([regular_move.position_first_tile, regular_move.position_second_tile], enemy_player_type_item)\
                 + 1.5 * self.calculate_heuristic_blocking([regular_move.position_first_tile, regular_move.position_second_tile], enemy_player_type_item)\
                 - 0.3 * self.calculate_heuristic_blocking([regular_move.position_first_tile, regular_move.position_second_tile], current_player.typeItem)
 
@@ -607,59 +604,59 @@ class Board:
             # Since we checked conditions 1, 2 and 3b, the card location is valid.
             return True
 
-    def check_win_conditions(self, inserted_tiles_pos, type_item):
+    def get_type_tile_pos(self, tile_pos, type_item):
+        tile = self.board[tile_pos[1]][tile_pos[0]]
+        if not isinstance(tile, Tile):
+            return None
         if type_item == Tile.Color:
-            types = (Tile.Color.white, Tile.Color.red)
+            type = tile.color
         else:
-            types = (Tile.DotState.empty, Tile.DotState.filled)
+            type = tile.dotState
+        return type
+
+    def check_win_conditions(self, inserted_tiles_pos, type_item):
         offsets = [(0, -1), (1, 0), (1, 1), (1, -1)]
         for tile_pos in inserted_tiles_pos:
+            type = self.get_type_tile_pos(tile_pos, type_item)
+            if type is None:
+                continue
             for offset in offsets:
                 for i in range(4):
                     start_pos = (tile_pos[0] - i * offset[0], tile_pos[1] - i * offset[1])
                     end_pos = (start_pos[0] + 3 * offset[0], start_pos[1] + 3 * offset[1])
                     if all_values_positive(start_pos[0], start_pos[1], end_pos[0], end_pos[1]):
-                        for type in types:
-                            if not isinstance(self.board[start_pos[1]][start_pos[0]], Tile):
-                                continue
-                            if self.board[start_pos[1]][start_pos[0]].get_item_key(type_item) != type:
-                                    continue
-                            if self.get_nbr_matching_tiles_in_offset_direction(start_pos, offset, type, type_item) >= 3:
-                                return True
+                        if self.get_nbr_matching_tiles_in_offset_direction(start_pos, offset, type, type_item) >= 4:
+                            return True
         return False
 
     def calculate_heuristic_inserted_tiles(self, inserted_tiles_pos, type_item):
-        if type_item == Tile.Color:
-            types = (Tile.Color.white, Tile.Color.red)
-        else:
-            types = (Tile.DotState.empty, Tile.DotState.filled)
         offsets = [(0, 1), (1, 0), (1, 1), (1, -1)]
         nbr_2_matching = 0
         nbr_3_matching = 0
         nbr_4_matching = 0
         for tile_pos in inserted_tiles_pos:
+            type = self.get_type_tile_pos(tile_pos, type_item)
+            if type is None:
+                continue
+
             for offset in offsets:
+                max_nbr_macthing_tiles = 0
                 for i in range(4):
                     start_pos = (tile_pos[0] - i * offset[0], tile_pos[1] - i * offset[1])
                     end_pos = (start_pos[0] + 3 * offset[0], start_pos[1] + 3 * offset[1])
                     if all_values_positive(start_pos[0], start_pos[1], end_pos[0], end_pos[1]):
-                        for type in types:
-                            nbr_matching_tiles = 0
-                            if isinstance(self.board[start_pos[1]][start_pos[0]], Tile):
-                                if self.board[start_pos[1]][start_pos[0]].get_item_key(type_item) != type:
-                                    continue
-                                else:
-                                    nbr_matching_tiles += 1
-                            nbr_matching_tiles += self.get_nbr_matching_tiles_in_offset_direction(start_pos, offset, type, type_item)
-                            if nbr_matching_tiles == 1:
-                                pass
-                            elif nbr_matching_tiles == 2:
-                                nbr_2_matching += 1
-                            elif nbr_matching_tiles == 3:
-                                nbr_3_matching += 1
-                            elif nbr_matching_tiles == 4:
-                                nbr_4_matching += 1
-        return 10 * nbr_2_matching + 12.5 * nbr_3_matching + 100000 * nbr_4_matching
+                        nbr_matching_tiles = self.get_nbr_matching_tiles_in_offset_direction(start_pos, offset, type, type_item)
+                        if nbr_matching_tiles > max_nbr_macthing_tiles:
+                            max_nbr_macthing_tiles = nbr_matching_tiles
+                if max_nbr_macthing_tiles == 1:
+                    pass
+                elif max_nbr_macthing_tiles == 2:
+                    nbr_2_matching += 1
+                elif max_nbr_macthing_tiles == 3:
+                    nbr_3_matching += 1
+                elif max_nbr_macthing_tiles == 4:
+                    nbr_4_matching += 1
+        return nbr_2_matching + 10 * nbr_3_matching + 10000 * nbr_4_matching
 
     def calculate_heuristic_blocking(self, inserted_tiles_pos, blocking_type_item):
         offsets = [(0, -1), (1, 0), (1, 1), (1, -1)]
@@ -667,46 +664,40 @@ class Board:
         nbr_3_blocking = 0
         nbr_4_blocking = 0
         for tile_pos in inserted_tiles_pos:
-            tile = self.board[tile_pos[1]][tile_pos[0]]
-            if not isinstance(tile, Tile):
+            blocking_type = self.get_type_tile_pos(tile_pos, blocking_type_item)
+            if blocking_type is None:
                 continue
-            if blocking_type_item == Tile.Color:
-                blocking_type = tile.color
-            else:
-                blocking_type = tile.dotState
-
             for offset in offsets:
-                max_nbr_blocked_tiles_offset = 0
+                max_nbr_blocked_tiles = 0
                 for j in range(4):
                     start_pos = (tile_pos[0] - j * offset[0], tile_pos[1] - j * offset[1])
                     end_pos = (start_pos[0] + 3 * offset[0], start_pos[1] + 3 * offset[1])
                     if all_values_positive(start_pos[0], start_pos[1], end_pos[0], end_pos[1]):
                         nbr_blocked_tiles = self.get_nbr_blocking_tiles_in_offset_direction(start_pos, inserted_tiles_pos, offset, blocking_type, blocking_type_item)
-                        if nbr_blocked_tiles > max_nbr_blocked_tiles_offset:
-                            max_nbr_blocked_tiles_offset = nbr_blocked_tiles
-                if max_nbr_blocked_tiles_offset <= 1:
+                        if nbr_blocked_tiles > max_nbr_blocked_tiles:
+                            max_nbr_blocked_tiles = nbr_blocked_tiles
+                if max_nbr_blocked_tiles <= 1:
                     pass
-                elif max_nbr_blocked_tiles_offset == 2:
+                elif max_nbr_blocked_tiles == 2:
                     nbr_2_blocking += 1
-                elif max_nbr_blocked_tiles_offset == 3:
+                elif max_nbr_blocked_tiles == 3:
                     nbr_3_blocking += 1
-                elif max_nbr_blocked_tiles_offset == 4:
+                elif max_nbr_blocked_tiles == 4:
                     nbr_4_blocking += 1
-        return 10 * nbr_2_blocking + 12.5 * nbr_3_blocking + 100 * nbr_4_blocking
+        return 10 * nbr_2_blocking + 1000 * nbr_3_blocking
 
     def get_nbr_blocking_tiles_in_offset_direction(self, tile_pos, inserted_tiles_pos, offset, blocking_type, type_item):
         current_pos = tile_pos
         nbr_blocked_tiles = 0
         checked_tiles = 0
-        while checked_tiles < 3:
-            current_pos = add_tuples(current_pos, offset)
+        while checked_tiles < 4:
             inserted_tile_check = False
             for placed_tile in inserted_tiles_pos:
                 if current_pos == placed_tile:
                     inserted_tile_check = True
             if not inserted_tile_check:
                 if all_values_positive(current_pos[0], current_pos[1]) \
-                    and isinstance(self.board[current_pos[1]][current_pos[0]], Tile):
+                        and isinstance(self.board[current_pos[1]][current_pos[0]], Tile):
                     if self.board[current_pos[1]][current_pos[0]].get_item_key(type_item) != blocking_type:
                         nbr_blocked_tiles += 1
                     # If any of the 3 tiles checked are already blocked,
@@ -714,14 +705,14 @@ class Board:
                     else:
                         return 0
             checked_tiles += 1
+            current_pos = add_tuples(current_pos, offset)
         return nbr_blocked_tiles
     
     def get_nbr_matching_tiles_in_offset_direction(self, tile_pos, offset, type, type_item):
         nbr_consecutives = 0
         current_pos = tile_pos
         checked_tiles = 0
-        while checked_tiles < 3:
-            current_pos = add_tuples(current_pos, offset)
+        while checked_tiles < 4:
             if all_values_positive(current_pos[0], current_pos[1]) \
                 and isinstance(self.board[current_pos[1]][current_pos[0]], Tile):
                 # Check whether this tile is a blocking one or not
@@ -731,6 +722,7 @@ class Board:
                 else:
                     return 0
             checked_tiles += 1
+            current_pos = add_tuples(current_pos, offset)
         return nbr_consecutives
 
     def generate_valid_recycling_moves(self):
@@ -905,8 +897,8 @@ game_info = None
 def set_up_game():
     b = Board(NBR_CARDS)
 
-    p1 = DotPlayer()
-    p2 = ColorPlayer()
+    dotPlayer = DotPlayer()
+    colorPlayer = ColorPlayer()
 
     current_player = None
     other_player = None
@@ -959,20 +951,20 @@ def set_up_game():
             if len(user_input) == 0:
                 user_input = input("Please enter C or D \n")
             elif user_input == 'C' or user_input == 'c':
-                current_player = p2
-                other_player = p1
                 if ai_first:
-                    ai_player = p2
+                    ai_player = current_player = dotPlayer
+                    other_player = colorPlayer
                 else:
-                    ai_player = p1
+                    ai_player = other_player = dotPlayer
+                    current_player = colorPlayer
                 break
             elif user_input == 'D' or user_input == 'd':
-                current_player = p1
-                other_player = p2
                 if ai_first:
-                    ai_player = p1
+                    ai_player = current_player = colorPlayer
+                    other_player = dotPlayer
                 else:
-                    ai_player = p2
+                    ai_player = other_player = colorPlayer
+                    current_player = dotPlayer
                 break
             else:
                 user_input = input("Invalid entry. Please try again \n")
@@ -984,17 +976,17 @@ def set_up_game():
             if len(user_input) == 0:
                     user_input = input("Please enter C or D \n")
             elif user_input == 'C' or user_input == 'c':
-                    current_player = p2
-                    other_player = p1
+                    current_player = colorPlayer
+                    other_player = dotPlayer
                     break
             elif user_input == 'D' or user_input == 'd':
-                    current_player = p1
-                    other_player = p2
+                    current_player = dotPlayer
+                    other_player = colorPlayer
                     break
             else:
                 user_input = input("Invalid entry. Please try again \n")
     global game_info
-    game_info = GameInfo(b, ai_player, current_player, other_player, p1, p2, tracing)
+    game_info = GameInfo(b, ai_player, current_player, other_player, dotPlayer, colorPlayer, tracing)
 
 def game_loop():
     global game_info
