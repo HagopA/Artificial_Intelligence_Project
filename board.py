@@ -625,8 +625,11 @@ class Board:
                     end_pos = (start_pos[0] + 3 * offset[0], start_pos[1] + 3 * offset[1])
                     if all_values_positive(start_pos[0], start_pos[1], end_pos[0], end_pos[1]):
                         if self.get_nbr_matching_tiles_in_offset_direction(start_pos, offset, type, type_item) >= 4:
-                            return True
-        return False
+                            pos2 = add_tuples(start_pos, offset)
+                            pos3 = add_tuples(pos2, offset)
+                            pos4 = add_tuples(pos3, offset)
+                            return [start_pos, pos2, pos3, pos4]
+        return None
 
     def calculate_heuristic_inserted_tiles(self, inserted_tiles_pos, type_item):
         offsets = [(0, 1), (1, 0), (1, 1), (1, -1)]
@@ -1000,10 +1003,12 @@ def game_loop():
             # the priority.
             # (i.e. The current players wins even if both players won simultaneously,
             # because the current player was the one to play the winning move)
-            if game_info.board.check_win_conditions(inserted_tiles_pos, game_info.current_player.typeItem):
+            winning_tiles_pos = game_info.board.check_win_conditions(inserted_tiles_pos, game_info.current_player.typeItem)
+            if winning_tiles_pos is not None:
                 print(game_info.current_player.name + " wins the game!!!")
                 return
-            if game_info.board.check_win_conditions(inserted_tiles_pos, game_info.other_player.typeItem):
+            winning_tiles_pos = game_info.board.check_win_conditions(inserted_tiles_pos, game_info.other_player.typeItem)
+            if winning_tiles_pos is not None:
                 print(game_info.other_player.name + " wins the game!!!")
                 return
         # We switch to the other player

@@ -26,12 +26,14 @@ def play_next_move():
         # the priority.
         # (i.e. The current players wins even if both players won simultaneously,
         # because the current player was the one to play the winning move)
-        if game_info.board.check_win_conditions(inserted_tiles_pos, game_info.current_player.typeItem):
+        boardWidget.winning_tiles_pos = game_info.board.check_win_conditions(inserted_tiles_pos, game_info.current_player.typeItem)
+        if boardWidget.winning_tiles_pos is not None:
             print(game_info.current_player.name + " wins the game!!!")
             boardWidget.winningPlayer = game_info.current_player
             boardWidget.compute_next_move_btn.setVisible(False)
             return
-        if game_info.board.check_win_conditions(inserted_tiles_pos, game_info.other_player.typeItem):
+        boardWidget.winning_tiles_pos = game_info.board.check_win_conditions(inserted_tiles_pos, game_info.other_player.typeItem)
+        if boardWidget.winning_tiles_pos is not None:
             print(game_info.other_player.name + " wins the game!!!")
             boardWidget.winningPlayer = game_info.other_player
             boardWidget.compute_next_move_btn.setVisible(False)
@@ -45,7 +47,7 @@ def play_next_move():
         print (str(board.MAX_NBR_MOVES) + " moves have been played. Thus, the game ends in a DRAW!! Congratulations to both players!")
         boardWidget.compute_next_move_btn.setVisible(False)
         boardWidget.winningPlayer = -1
-    boardWidget.compute_next_move_btn.setText(("dots" if game_info.current_player.typeItem == board.Tile.DotState else "colors") + " move")
+    boardWidget.update_buttons()
 
 class BoardWidget(QtWidgets.QWidget):
     def __init__(self, board):
@@ -54,6 +56,7 @@ class BoardWidget(QtWidgets.QWidget):
         # We only need to keep a reference to the cards on the board to display them properly in the UI.
         self.cardsPos = set()
         self.lastCardPos = None
+        self.winning_tiles_pos = None
         self.winningPlayer = None
         self.setGeometry(300, 100, 900, 900)
         self.setWindowTitle("Double Card")
@@ -63,10 +66,11 @@ class BoardWidget(QtWidgets.QWidget):
         quit_btn.setShortcut(QtCore.Qt.Key_Escape)
         quit_btn.clicked.connect(QtCore.QCoreApplication.instance().quit)
 
-        self.compute_next_move_btn = QtWidgets.QPushButton("Compute move", self)
+        self.compute_next_move_btn = QtWidgets.QPushButton("", self)
         self.compute_next_move_btn.move(700, 615)
         self.compute_next_move_btn.setShortcut(QtCore.Qt.Key_Space)
         self.compute_next_move_btn.clicked.connect(play_next_move)
+        self.update_buttons()
 
         self.show()
 
@@ -78,6 +82,9 @@ class BoardWidget(QtWidgets.QWidget):
                             ("a recycling move" if self.board.isInRecyclingPhase() else "a regular move") + ":")[0]
             inserted_tiles_pos = self.board.read_input(input_str)
         return inserted_tiles_pos
+
+    def update_buttons(self):
+        self.compute_next_move_btn.setText(("dots" if game_info.current_player.typeItem == board.Tile.DotState else "colors") + " move")
 
     def paintWinningPlayerText(self, painter):
         if isinstance(self.winningPlayer, board.ColorPlayer):
@@ -156,9 +163,13 @@ class BoardWidget(QtWidgets.QWidget):
         painter.setPen(QtGui.QPen(QtGui.QColor(0, 0, 153), 4, Qt.SolidLine))
         for card in self.cardsPos:
             self.drawCardBorders(painter, card, x_init_pos, y_init_pos, x_increment, y_increment)
-        painter.setPen(QtGui.QPen(QtGui.QColor(255, 255, 0), 4, Qt.SolidLine))
         if self.lastCardPos is not None:
-            self.drawCardBorders(painter, self.lastCardPos, x_init_pos, y_init_pos, x_increment, y_increment)
+            if self.winning_tiles_pos is None:
+                painter.setPen(QtGui.QPen(QtGui.QColor(255, 255, 0), 4, Qt.SolidLine))
+                self.drawCardBorders(painter, self.lastCardPos, x_init_pos, y_init_pos, x_increment, y_increment)
+            else:
+                painter.setPen(QtGui.QPen(QtGui.QColor(0, 255, 0), 6, Qt.SolidLine))
+                self.draw_winning_match(painter, x_init_pos, y_init_pos, x_increment, y_increment)
 
     def drawCardBorders(self, painter, card_to_be_drawn, x_init_pos, y_init_pos, x_increment, y_increment):
         if card_to_be_drawn[0] < card_to_be_drawn[1]:
@@ -187,6 +198,14 @@ class BoardWidget(QtWidgets.QWidget):
         painter.drawLine(bottom_left_pos_x, top_right_pos_y, top_right_pos_x, top_right_pos_y)
         painter.drawLine(bottom_left_pos_x, bottom_left_pos_y, bottom_left_pos_x, top_right_pos_y)
         painter.drawLine(top_right_pos_x, bottom_left_pos_y, top_right_pos_x, top_right_pos_y)
+
+    def draw_winning_match(self, painter, x_init_pos, y_init_pos, x_increment, y_increment):
+        for tile_pos in self.winning_tiles_pos:
+            bottom_left_corner = (x_init_pos + x_increment * (tile_pos[0] + 1), y_init_pos + y_increment * (self.board.DIMENSIONS_X_Y[1] - tile_pos[1]))
+            painter.drawLine(bottom_left_corner[0], bottom_left_corner[1], bottom_left_corner[0], bottom_left_corner[1] - y_increment)
+            painter.drawLine(bottom_left_corner[0], bottom_left_corner[1], bottom_left_corner[0] + x_increment, bottom_left_corner[1])
+            painter.drawLine(bottom_left_corner[0] + x_increment, bottom_left_corner[1], bottom_left_corner[0] + x_increment, bottom_left_corner[1] - y_increment)
+            painter.drawLine(bottom_left_corner[0], bottom_left_corner[1] - y_increment, bottom_left_corner[0] + x_increment, bottom_left_corner[1] - y_increment)
 
     def drawLegendRotCodes(self, painter):
         painter.setFont(QtGui.QFont('Decorative', 10))
